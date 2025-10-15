@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset>
+    <!-- Project rules for Kaiten Integration App. -->
+    <rules>
+        <rule name="comments">
+            <description>All code comments must be written in English and end with a full stop.</description>
+        </rule>
+        <rule name="linter">
+            <description>Do not automatically fix linter errors unless explicitly requested.</description>
+        </rule>
+        <rule name="communication">
+            <description>Always respond to the user in Russian language.</description>
+        </rule>
+    </rules>
+</ruleset>
+
