@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8080:80"
+    volumes:
+      - ./dist:/kaiten-integra/dist:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    environment:
+      - KAITEN_API_URL=${KAITEN_API_URL:-https://yarops.kaiten.ru/api/latest}
+      - KAITEN_API_TOKEN=${KAITEN_API_TOKEN}
+      - SUPABASE_URL=${SUPABASE_URL:-https://rfdnjjxvtqzxxrqzgnvg.supabase.co}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}

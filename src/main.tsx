@@ -9,6 +9,8 @@ import './index.css'
 const apiUrl = import.meta.env.VITE_KAITEN_API_URL
 const apiToken = import.meta.env.VITE_KAITEN_API_TOKEN
 
+console.log(apiUrl, apiToken);
+
 if (!apiUrl || !apiToken) {
     console.error(
         'VITE_KAITEN_API_URL and VITE_KAITEN_API_TOKEN must be set in .env.local file'
