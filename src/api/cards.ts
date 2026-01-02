@@ -4,10 +4,19 @@ import { KaitenCard, ExtendedKaitenCard } from '../types/kaiten'
 
 /**
  * Fetches cards for a specific board.
+ * Only fetches non-archived cards (condition=1 means live/active, condition=2 means archived).
  */
 export const fetchCards = async (boardId?: number): Promise<KaitenCard[]> => {
     const client = getKaitenClient()
-    const params = boardId ? { board_id: boardId } : {}
+    const params: Record<string, any> = {}
+
+    if (boardId) {
+        params.board_id = boardId
+    }
+
+    // Filter for non-archived cards only (condition=1 means live/active)
+    params.condition = 1
+
     const response = await client.get<KaitenCard[]>('/cards', { params })
     return response.data
 }

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { Invoice, CreateInvoiceData, InvoiceWithCards } from '../types/invoice'
 import { KaitenCard } from '../types/kaiten'
 import { archiveCards, unarchiveCards } from './cards'
+import { getTimeTrackingSummaries } from './time-entries'
 
 /**
  * Creates a new invoice with selected cards.
@@ -11,8 +12,38 @@ export const createInvoice = async (
     data: CreateInvoiceData,
     cards: KaitenCard[]
 ): Promise<Invoice> => {
-    // Calculate totals.
-    const totalTimeSpent = cards.reduce((sum, card) => sum + (card.time_spent_sum || 0), 0)
+    // Get time tracking summaries for all cards.
+    const cardIds = cards.map(card => card.id)
+    const timeSummaries = await getTimeTrackingSummaries(cardIds)
+
+    // Create a map of card_id to tracked time for quick lookup.
+    const trackedTimeMap = new Map<number, number>()
+    timeSummaries.forEach(summary => {
+        trackedTimeMap.set(summary.card_id, summary.total_minutes_all)
+    })
+
+    // Calculate totals including both Kaiten time and tracked time.
+    let totalTimeSpent = 0
+    const invoiceCards = cards.map((card) => {
+        const kaitenTime = card.time_spent_sum || 0
+        const trackedTime = trackedTimeMap.get(card.id) || 0
+        const totalCardTime = kaitenTime + trackedTime
+
+        totalTimeSpent += totalCardTime
+
+        return {
+            invoice_id: '', // Will be set after invoice creation
+            card_id: card.id,
+            card_title: card.title,
+            card_description: null,
+            time_spent: totalCardTime,
+            kaiten_time_spent: kaitenTime,
+            tracked_time_spent: trackedTime,
+            tags: card.tags || [],
+            created_at: card.created,
+        }
+    })
+
     const totalCards = cards.length
 
     // Create invoice.
@@ -33,18 +64,13 @@ export const createInvoice = async (
 
     if (invoiceError) throw invoiceError
 
-    // Create invoice cards.
-    const invoiceCards = cards.map((card) => ({
+    // Update invoice cards with invoice ID and insert them.
+    const invoiceCardsWithId = invoiceCards.map(card => ({
+        ...card,
         invoice_id: invoice.id,
-        card_id: card.id,
-        card_title: card.title,
-        card_description: null,
-        time_spent: card.time_spent_sum || 0,
-        tags: card.tags || [],
-        created_at: card.created,
     }))
 
-    const { error: cardsError } = await supabase.from('invoice_cards').insert(invoiceCards)
+    const { error: cardsError } = await supabase.from('invoice_cards').insert(invoiceCardsWithId)
 
     if (cardsError) throw cardsError
 

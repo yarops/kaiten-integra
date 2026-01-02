@@ -493,8 +493,6 @@
     }
 
     /* Hide Card ID, Tags and Created columns in print. */
-    .invoice-cards-table th:nth-child(1),
-    .invoice-cards-table td:nth-child(1),
     .invoice-cards-table th:nth-child(3),
     .invoice-cards-table td:nth-child(3),
     .invoice-cards-table th:nth-child(7),

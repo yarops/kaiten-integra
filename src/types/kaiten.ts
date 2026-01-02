@@ -55,6 +55,7 @@ export interface KaitenCard {
     time_spent_sum?: number
     tags?: any[]
     assignees?: KaitenUser[]
+    archived?: boolean
 }
 
 /**
