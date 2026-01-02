@@ -60,11 +60,29 @@ export const archiveCard = async (cardId: number): Promise<void> => {
 }
 
 /**
- * Archives multiple cards in Kaiten.
+ * Archives multiple cards in Kaiten sequentially with delays to avoid rate limiting.
+ * Processes cards one by one with a delay between requests to prevent 429 errors.
  */
 export const archiveCards = async (cardIds: number[]): Promise<void> => {
-    const promises = cardIds.map((cardId) => archiveCard(cardId))
-    await Promise.all(promises)
+    for (let i = 0; i < cardIds.length; i++) {
+        try {
+            await archiveCard(cardIds[i])
+        } catch (error: any) {
+            // If we get a 429 error, wait longer and retry
+            if (error.response?.status === 429) {
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                // Retry once
+                await archiveCard(cardIds[i])
+            } else {
+                throw error
+            }
+        }
+
+        // Add delay between requests to avoid rate limiting (except after the last card)
+        if (i < cardIds.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200))
+        }
+    }
 }
 
 /**
@@ -76,10 +94,28 @@ export const unarchiveCard = async (cardId: number): Promise<void> => {
 }
 
 /**
- * Unarchives multiple cards in Kaiten.
+ * Unarchives multiple cards in Kaiten sequentially with delays to avoid rate limiting.
+ * Processes cards one by one with a delay between requests to prevent 429 errors.
  */
 export const unarchiveCards = async (cardIds: number[]): Promise<void> => {
-    const promises = cardIds.map((cardId) => unarchiveCard(cardId))
-    await Promise.all(promises)
+    for (let i = 0; i < cardIds.length; i++) {
+        try {
+            await unarchiveCard(cardIds[i])
+        } catch (error: any) {
+            // If we get a 429 error, wait longer and retry
+            if (error.response?.status === 429) {
+                await new Promise(resolve => setTimeout(resolve, 1000))
+                // Retry once
+                await unarchiveCard(cardIds[i])
+            } else {
+                throw error
+            }
+        }
+
+        // Add delay between requests to avoid rate limiting (except after the last card)
+        if (i < cardIds.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 200))
+        }
+    }
 }
 
