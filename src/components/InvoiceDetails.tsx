@@ -1,7 +1,6 @@
 import { useInvoiceWithCards, useUpdateInvoiceStatus } from '../api/invoices'
-import { getStatusChangeConfirmMessage } from '../lib/invoice-rules'
+import { getStatusChangeConfirmMessage, getTagName, groupCardsByPrimaryTag } from '../lib/invoice-rules'
 import { calculateCost, formatCurrency, formatHourlyRate } from '../lib/rates'
-import { InvoiceCard } from '../types/invoice'
 import { useDialogs } from './dialogs/dialogs-context'
 import './InvoiceDetails.css'
 
@@ -53,25 +52,6 @@ const getStatusLabel = (status: string): string => {
         default:
             return status
     }
-}
-
-const getTagName = (tag: InvoiceCard['tags'][number]) => typeof tag === 'string' ? tag : tag.name
-
-/**
- * Groups cards by their primary (first) tag, so each card appears exactly once
- * and group amounts add up to the invoice total. Other tags are shown as badges.
- */
-const groupCardsByPrimaryTag = (cards: InvoiceCard[]): Map<string, InvoiceCard[]> => {
-    const groups = new Map<string, InvoiceCard[]>()
-
-    cards.forEach((card) => {
-        const groupName = card.tags && card.tags.length > 0 ? getTagName(card.tags[0]) : 'No Tags'
-        const groupCards = groups.get(groupName) || []
-        groupCards.push(card)
-        groups.set(groupName, groupCards)
-    })
-
-    return groups
 }
 
 export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {

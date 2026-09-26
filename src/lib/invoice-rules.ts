@@ -1,4 +1,4 @@
-import { Invoice } from '../types/invoice'
+import { Invoice, InvoiceCard } from '../types/invoice'
 
 type InvoiceStatus = Invoice['status']
 
@@ -16,4 +16,23 @@ export const getStatusChangeConfirmMessage = (current: InvoiceStatus, next: Invo
         messages.push('Its cards will become editable again.')
     }
     return messages.join(' ')
+}
+
+export const getTagName = (tag: InvoiceCard['tags'][number]) => typeof tag === 'string' ? tag : tag.name
+
+/**
+ * Groups cards by their primary (first) tag, so each card appears exactly once
+ * and group amounts add up to the invoice total. Other tags are shown as badges.
+ */
+export const groupCardsByPrimaryTag = (cards: InvoiceCard[]): Map<string, InvoiceCard[]> => {
+    const groups = new Map<string, InvoiceCard[]>()
+
+    cards.forEach((card) => {
+        const groupName = card.tags && card.tags.length > 0 ? getTagName(card.tags[0]) : 'No Tags'
+        const groupCards = groups.get(groupName) || []
+        groupCards.push(card)
+        groups.set(groupName, groupCards)
+    })
+
+    return groups
 }
