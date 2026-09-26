@@ -54,27 +54,20 @@ const getStatusLabel = (status: string): string => {
     }
 }
 
-/**
- * Groups cards by tags. Cards with multiple tags appear in multiple groups.
- */
 const getTagName = (tag: InvoiceCard['tags'][number]) => typeof tag === 'string' ? tag : tag.name
 
-const groupCardsByTags = (cards: InvoiceCard[]): Map<string, InvoiceCard[]> => {
+/**
+ * Groups cards by their primary (first) tag, so each card appears exactly once
+ * and group amounts add up to the invoice total. Other tags are shown as badges.
+ */
+const groupCardsByPrimaryTag = (cards: InvoiceCard[]): Map<string, InvoiceCard[]> => {
     const groups = new Map<string, InvoiceCard[]>()
 
     cards.forEach((card) => {
-        if (!card.tags || card.tags.length === 0) {
-            const noTagCards = groups.get('No Tags') || []
-            noTagCards.push(card)
-            groups.set('No Tags', noTagCards)
-        } else {
-            card.tags.forEach((tag) => {
-                const tagName = getTagName(tag)
-                const tagCards = groups.get(tagName) || []
-                tagCards.push(card)
-                groups.set(tagName, tagCards)
-            })
-        }
+        const groupName = card.tags && card.tags.length > 0 ? getTagName(card.tags[0]) : 'No Tags'
+        const groupCards = groups.get(groupName) || []
+        groupCards.push(card)
+        groups.set(groupName, groupCards)
     })
 
     return groups
@@ -216,7 +209,7 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
 
             <div className="invoice-cards-section">
                 <h3>Cards ({invoice.invoice_cards.length})</h3>
-                {Array.from(groupCardsByTags(invoice.invoice_cards)).map(([tagName, cards]) => (
+                {Array.from(groupCardsByPrimaryTag(invoice.invoice_cards)).map(([tagName, cards]) => (
                     <div key={tagName} className="tag-group">
                         <div className="tag-group-header">
                             <h4 className="tag-group-title">{tagName}</h4>
