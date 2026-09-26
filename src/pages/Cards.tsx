@@ -151,6 +151,11 @@ export function CardsPage() {
         catch (error) { dialogs.error(`Failed to ${action.toLowerCase()} card.`, error) }
     }
 
+    const changeCardStatus = async (card: Card, status: CardStatus) => {
+        try { await updateCard.mutateAsync({ id: card.id, changes: { status } }) }
+        catch (error) { dialogs.error('Failed to change card status.', error) }
+    }
+
     const toggleCard = (card: Card) => {
         if (!canInvoiceCard(card)) return
         setSelectedCardIds((current) => {
@@ -182,10 +187,10 @@ export function CardsPage() {
         <section>
             <div className="table-toolbar"><h2>{selectedBoard?.title}</h2><button className="btn-primary" disabled={selectedBoard?.archived} onClick={() => setEditingCard('new')}>New card</button></div>
             {cards.length ? <div className="table-container"><table className="cards-table"><thead><tr><th><input type="checkbox" checked={doneCards.length > 0 && selectedCardIds.size === doneCards.length} onChange={() => setSelectedCardIds(selectedCardIds.size === doneCards.length ? new Set() : new Set(doneCards.map((card) => card.id)))} /></th><th>ID</th><th>Title</th><th>Tags</th><th>Time</th><th>Created</th><th>Status</th><th>Track</th><th>Actions</th></tr></thead>
-                <tbody>{cards.map((card) => { const archived = isCardArchived(card); const locked = isCardLocked(card); return <tr key={card.id} className={`${selectedCardIds.has(card.id) ? 'selected ' : ''}${archived ? 'archived-row' : ''}`}>
+                <tbody>{cards.map((card) => { const archived = isCardArchived(card); const locked = isCardLocked(card); const statusPending = updateCard.isPending && updateCard.variables?.id === card.id; return <tr key={card.id} className={`${selectedCardIds.has(card.id) ? 'selected ' : ''}${archived ? 'archived-row' : ''}`}>
                     <td><input type="checkbox" checked={selectedCardIds.has(card.id)} disabled={!canInvoiceCard(card)} onChange={() => toggleCard(card)} /></td><td>{card.id}</td><td><strong>{card.title}</strong>{card.description && <div className="card-description">{card.description}</div>}</td>
                     <td>{card.tags.map((tag) => typeof tag === 'string' ? tag : tag.name).join(', ') || '—'}</td><td>{formatTime(minutesByCard.get(card.id))}</td><td>{new Date(card.created_at).toLocaleDateString()}</td>
-                    <td className="card-status"><select value={card.status} disabled={archived || locked} title={locked ? lockedCardHint : undefined} onChange={(event) => updateCard.mutate({ id: card.id, changes: { status: event.target.value as CardStatus } })}>{Object.entries(cardStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{card.invoice && <button className="invoice-link" onClick={() => openInvoice(card.invoice!.id)}>{cardInvoiceLabels[card.invoice.status]}</button>}</td>
+                    <td className="card-status"><select value={card.status} disabled={archived || locked || statusPending} title={locked ? lockedCardHint : undefined} onChange={(event) => changeCardStatus(card, event.target.value as CardStatus)}>{Object.entries(cardStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{card.invoice && <button className="invoice-link" onClick={() => openInvoice(card.invoice!.id)}>{cardInvoiceLabels[card.invoice.status]}</button>}</td>
                     <td><button disabled={archived || locked} title={locked ? lockedCardHint : undefined} className="time-tracker-btn" onClick={() => setTimeCardId(card.id)}>{minutesByCard.get(card.id) ? '✓' : '+'}</button></td>
                     <td className="row-actions"><button disabled={locked} title={locked ? lockedCardHint : undefined} onClick={() => setEditingCard(card)}>Edit</button><button disabled={!!card.invoice} title={card.invoice ? 'Included in an invoice.' : undefined} onClick={() => toggleCardArchive(card)}>{card.manually_archived ? 'Restore' : 'Archive'}</button></td>
                 </tr> })}</tbody></table></div> : <p className="info-message">No cards yet.</p>}
