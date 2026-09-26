@@ -29,3 +29,6 @@ dist-ssr
 *.sln
 *.sw?
 
+
+# Local data backups
+backups

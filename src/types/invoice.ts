@@ -25,8 +25,6 @@ export interface InvoiceCard {
     card_title: string
     card_description: string | null
     time_spent: number
-    legacy_time_spent?: number
-    tracked_time_spent?: number
     tags: Array<{ name: string } | string>
     created_at: string | null
     created_at_record: string

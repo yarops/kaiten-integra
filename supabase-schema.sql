@@ -35,8 +35,8 @@ CREATE TABLE cards (
 );
 CREATE TABLE invoices (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id BIGINT NOT NULL, workspace_title TEXT,
-    board_id BIGINT NOT NULL, board_title TEXT,
+    workspace_id BIGINT NOT NULL REFERENCES workspaces(id), workspace_title TEXT,
+    board_id BIGINT NOT NULL REFERENCES boards(id), board_title TEXT,
     total_time_spent INTEGER NOT NULL DEFAULT 0, total_cards INTEGER NOT NULL DEFAULT 0,
     hourly_rate NUMERIC(12,2) NOT NULL CHECK (hourly_rate >= 0),
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'sent', 'paid')),
@@ -44,13 +44,12 @@ CREATE TABLE invoices (
 );
 CREATE TABLE invoice_cards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-    card_id BIGINT NOT NULL CONSTRAINT invoice_cards_card_id_key UNIQUE, card_title TEXT NOT NULL, card_description TEXT,
-    time_spent INTEGER NOT NULL DEFAULT 0, legacy_time_spent INTEGER NOT NULL DEFAULT 0,
-    tracked_time_spent INTEGER NOT NULL DEFAULT 0, tags JSONB NOT NULL DEFAULT '[]'::jsonb,
+    card_id BIGINT NOT NULL CONSTRAINT invoice_cards_card_id_key UNIQUE REFERENCES cards(id), card_title TEXT NOT NULL, card_description TEXT,
+    time_spent INTEGER NOT NULL DEFAULT 0, tags JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ, created_at_record TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE TABLE time_entries (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), card_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(), card_id BIGINT NOT NULL REFERENCES cards(id),
     hours INTEGER NOT NULL DEFAULT 0 CHECK (hours BETWEEN 0 AND 23),
     minutes INTEGER NOT NULL DEFAULT 0 CHECK (minutes BETWEEN 0 AND 59),
     description TEXT, date DATE NOT NULL DEFAULT CURRENT_DATE,
@@ -131,14 +130,12 @@ BEGIN
     PERFORM 1 FROM cards WHERE id IN (SELECT card_id FROM invoice_cards WHERE invoice_id = target_invoice_id)
     ORDER BY id FOR UPDATE;
     IF old_status = 'draft' AND new_status <> 'draft' THEN
-        -- Legacy rows without a local card keep their snapshot.
         IF EXISTS (SELECT 1 FROM invoice_cards ic JOIN cards c ON c.id = ic.card_id
                    WHERE ic.invoice_id = target_invoice_id AND (c.status <> 'done' OR c.manually_archived)) THEN
             RAISE EXCEPTION 'All invoice cards must be done and not archived' USING ERRCODE = 'check_violation';
         END IF;
         UPDATE invoice_cards ic SET card_title = c.title, card_description = c.description, tags = c.tags,
-               tracked_time_spent = COALESCE(s.total_minutes_all, 0)::INTEGER,
-               time_spent = ic.legacy_time_spent + COALESCE(s.total_minutes_all, 0)::INTEGER
+               time_spent = COALESCE(s.total_minutes_all, 0)::INTEGER
         FROM cards c LEFT JOIN time_tracking_summary s ON s.card_id = c.id
         WHERE ic.invoice_id = target_invoice_id AND c.id = ic.card_id;
         UPDATE invoices i SET total_cards = t.card_count, total_time_spent = t.total_time
@@ -188,9 +185,8 @@ BEGIN
             COALESCE(invoice_hourly_rate, effective_hourly_rate(target_workspace.id)))
     RETURNING id INTO new_invoice_id;
     INSERT INTO invoice_cards (invoice_id, card_id, card_title, card_description,
-                               time_spent, legacy_time_spent, tracked_time_spent, tags, created_at)
-    SELECT new_invoice_id, c.id, c.title, c.description, COALESCE(s.total_minutes_all, 0)::INTEGER, 0,
-           COALESCE(s.total_minutes_all, 0)::INTEGER, c.tags, c.created_at
+                               time_spent, tags, created_at)
+    SELECT new_invoice_id, c.id, c.title, c.description, COALESCE(s.total_minutes_all, 0)::INTEGER, c.tags, c.created_at
     FROM cards c LEFT JOIN time_tracking_summary s ON s.card_id = c.id
     WHERE c.id = ANY(unique_card_ids);
     UPDATE invoices i SET total_cards = t.card_count, total_time_spent = t.total_time
@@ -207,6 +203,7 @@ DECLARE affected_card_ids BIGINT[];
 BEGIN
     SELECT ARRAY_AGG(card_id) INTO affected_card_ids FROM invoice_cards WHERE invoice_id = target_invoice_id;
     DELETE FROM invoices WHERE id = target_invoice_id;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Invoice not found'; END IF;
     UPDATE cards c SET billing_archived = EXISTS (
         SELECT 1 FROM invoice_cards ic JOIN invoices i ON i.id = ic.invoice_id
         WHERE ic.card_id = c.id AND i.status = 'paid'
