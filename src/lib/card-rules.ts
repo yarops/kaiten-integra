@@ -1,4 +1,4 @@
-import { Card, isCardArchived } from '../types/work-management'
+import { Card, TagItem, isCardArchived } from '../types/work-management'
 
 export const canInvoiceCard = (card: Card) => card.status === 'done' && !isCardArchived(card) && !card.invoice
 
@@ -6,6 +6,8 @@ export const canInvoiceCard = (card: Card) => card.status === 'done' && !isCardA
 export const isCardLocked = (card: Card) => !!card.invoice && card.invoice.status !== 'draft'
 
 export const activeCardsOnly = (cards: Card[]) => cards.filter((card) => !isCardArchived(card))
+
+export const getTagName = (tag: TagItem) => typeof tag === 'string' ? tag : tag.name
 
 export const normalizeTags = (tags: string[] = []) =>
     tags.map((name) => ({ name: name.trim() })).filter((tag) => tag.name)

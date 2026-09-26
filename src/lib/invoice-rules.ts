@@ -1,4 +1,5 @@
 import { Invoice, InvoiceCard } from '../types/invoice'
+import { getTagName } from './card-rules'
 
 type InvoiceStatus = Invoice['status']
 
@@ -17,8 +18,6 @@ export const getStatusChangeConfirmMessage = (current: InvoiceStatus, next: Invo
     }
     return messages.join(' ')
 }
-
-export const getTagName = (tag: InvoiceCard['tags'][number]) => typeof tag === 'string' ? tag : tag.name
 
 /**
  * Groups cards by their primary (first) tag, so each card appears exactly once

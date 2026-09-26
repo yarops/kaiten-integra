@@ -102,11 +102,11 @@ export const TimeInput: React.FC<TimeInputProps> = ({
         }
     }
 
-    const handleDeleteEntry = async (entryId: string) => {
+    const handleDeleteEntry = async (entry: TimeEntry) => {
         if (!await dialogs.confirm({ title: 'Delete time entry', message: 'Are you sure you want to delete this time entry?', confirmLabel: 'Delete', danger: true })) return
 
         try {
-            await deleteTimeEntryMutation.mutateAsync(entryId)
+            await deleteTimeEntryMutation.mutateAsync(entry)
             await refetchTimeEntries()
         } catch (error) {
             dialogs.error('Failed to delete time entry.', error)
@@ -231,7 +231,7 @@ export const TimeInput: React.FC<TimeInputProps> = ({
                                 <button
                                     type="button"
                                     className="time-entry-btn"
-                                    onClick={() => handleDeleteEntry(entry.id)}
+                                    onClick={() => handleDeleteEntry(entry)}
                                     disabled={deleteTimeEntryMutation.isPending}
                                 >
                                     Delete

@@ -130,7 +130,7 @@ describe('TimeInput', () => {
         fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
         dialog = await screen.findByRole('dialog', { name: 'Delete time entry' })
         fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
-        await waitFor(() => expect(api.remove).toHaveBeenCalledWith('a'))
+        await waitFor(() => expect(api.remove).toHaveBeenCalledWith(api.entries[0]))
         expect(api.refetch).toHaveBeenCalled()
     })
 })

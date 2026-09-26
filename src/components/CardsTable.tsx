@@ -1,5 +1,5 @@
 import { Card, CardInvoice, CardStatus, cardStatusLabels, isCardArchived } from '../types/work-management'
-import { canInvoiceCard, isCardLocked } from '../lib/card-rules'
+import { canInvoiceCard, getTagName, isCardLocked } from '../lib/card-rules'
 import { formatMinutes } from '../lib/time'
 
 const cardInvoiceLabels: Record<CardInvoice['status'], string> = {
@@ -38,7 +38,7 @@ const CardRow = ({ card, minutes, selected, statusPending, ...actions }: CardRow
     const archived = isCardArchived(card)
     const locked = isCardLocked(card)
     const lockedTitle = locked ? lockedCardHint : undefined
-    const tags = card.tags.map((tag) => (typeof tag === 'string' ? tag : tag.name)).join(', ')
+    const tags = card.tags.map(getTagName).join(', ')
     const rowClassName = [selected && 'selected', archived && 'archived-row'].filter(Boolean).join(' ')
 
     return (

@@ -1,5 +1,6 @@
 import { FormEvent, useState } from 'react'
 import { useCreateCard, useUpdateCard } from '../api/cards'
+import { getTagName } from '../lib/card-rules'
 import { Card, CardStatus, cardStatusLabels } from '../types/work-management'
 import { Modal } from './Modal'
 import { useDialogs } from './dialogs/dialogs-context'
@@ -14,7 +15,7 @@ export const CardForm = ({ card, boardId, onClose }: CardFormProps) => {
     const [title, setTitle] = useState(card?.title || '')
     const [description, setDescription] = useState(card?.description || '')
     const [status, setStatus] = useState<CardStatus>(card?.status || 'queued')
-    const [tags, setTags] = useState((card?.tags || []).map((tag) => typeof tag === 'string' ? tag : tag.name).join(', '))
+    const [tags, setTags] = useState((card?.tags || []).map(getTagName).join(', '))
 
     const submit = async (event: FormEvent) => {
         event.preventDefault()

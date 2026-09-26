@@ -103,10 +103,9 @@ export const useDeleteTimeEntry = () => {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: deleteTimeEntry,
-        onSuccess: () => {
-            // We need to invalidate all time-related queries since we don't know the card_id.
-            queryClient.invalidateQueries({ queryKey: ['timeEntries'] })
+        mutationFn: (entry: Pick<TimeEntry, 'id' | 'card_id'>) => deleteTimeEntry(entry.id),
+        onSuccess: (_, entry) => {
+            queryClient.invalidateQueries({ queryKey: ['timeEntries', entry.card_id] })
             queryClient.invalidateQueries({ queryKey: ['timeTrackingSummaries'] })
         },
     })

@@ -26,13 +26,16 @@ export interface Board {
     updated_at: string
 }
 
+/** Tags are stored either as plain names or as `{ name }` objects. */
+export type TagItem = { name: string } | string
+
 export interface Card {
     id: number
     board_id: number
     title: string
     description: string | null
     status: CardStatus
-    tags: Array<{ name: string } | string>
+    tags: TagItem[]
     manually_archived: boolean
     billing_archived: boolean
     created_at: string

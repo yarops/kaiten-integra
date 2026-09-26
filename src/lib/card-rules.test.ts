@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { activeCardsOnly, canInvoiceCard, isCardLocked, normalizeTags, retainInvoiceableSelection } from './card-rules'
+import { activeCardsOnly, canInvoiceCard, getTagName, isCardLocked, normalizeTags, retainInvoiceableSelection } from './card-rules'
 import { Card } from '../types/work-management'
 
 const card = (changes: Partial<Card> = {}): Card => ({
@@ -45,5 +45,11 @@ describe('card rules', () => {
 
     it('trims and removes empty tags', () => {
         expect(normalizeTags([' support ', '', ' billing'])).toEqual([{ name: 'support' }, { name: 'billing' }])
+    })
+})
+
+describe('getTagName', () => {
+    it('reads both tag formats', () => {
+        expect(['support', { name: 'urgent' }].map(getTagName)).toEqual(['support', 'urgent'])
     })
 })

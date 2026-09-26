@@ -1,5 +1,6 @@
 import { useInvoiceWithCards, useUpdateInvoiceStatus } from '../api/invoices'
-import { getStatusChangeConfirmMessage, getTagName, groupCardsByPrimaryTag } from '../lib/invoice-rules'
+import { getTagName } from '../lib/card-rules'
+import { getStatusChangeConfirmMessage, groupCardsByPrimaryTag } from '../lib/invoice-rules'
 import { calculateCost, formatCurrency, formatHourlyRate } from '../lib/rates'
 import { useDialogs } from './dialogs/dialogs-context'
 import './InvoiceDetails.css'
