@@ -14,4 +14,4 @@ Serve `dist/` from any static host with an SPA fallback to `index.html`. The inc
 docker compose up -d
 ```
 
-No task-management API proxy or server-side API token is required.
+No task-management API proxy or server-side API token is required. The anonymous key is public by design: without a signed-in user it grants no data access (see `SUPABASE_SETUP.md`).

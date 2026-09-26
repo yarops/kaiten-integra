@@ -311,6 +311,9 @@
 .entity-form input, .entity-form textarea, .entity-form select { box-sizing: border-box; width: 100%; padding: .7rem; border: 1px solid #444; border-radius: 5px; background: #242424; color: white; }
 .form-actions { justify-content: flex-end; }
 .form-hint { color: #888; font-size: .8rem; }
+.login-page { max-width: 360px; padding-top: 6rem; }
+.login-page h1 { margin: 0 0 1.5rem; font-size: 1.6rem; }
+.login-error { margin: 0; color: #e74c3c; }
 
 @media (max-width: 800px) {
   .app-shell { padding: 1rem; }

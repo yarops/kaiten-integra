@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider } from '@tanstack/react-router'
 import { router } from './router'
 import { DialogProvider } from './components/dialogs/DialogProvider'
+import { AuthGate } from './components/AuthGate'
 import './index.css'
 
 // Create a client for TanStack Query.
@@ -21,7 +22,9 @@ ReactDOM.createRoot(document.getElementById('app')!).render(
     <React.StrictMode>
         <QueryClientProvider client={queryClient}>
             <DialogProvider>
-                <RouterProvider router={router} />
+                <AuthGate>
+                    <RouterProvider router={router} />
+                </AuthGate>
             </DialogProvider>
         </QueryClientProvider>
     </React.StrictMode>,

@@ -79,7 +79,10 @@ CREATE VIEW time_tracking_summary AS
 SELECT card_id, COUNT(*) AS entries_count, SUM(hours) AS total_hours, SUM(minutes) AS total_minutes,
        SUM(hours * 60 + minutes) AS total_minutes_all, MAX(date) AS last_entry_date
 FROM time_entries GROUP BY card_id;
-GRANT SELECT ON time_tracking_summary TO anon, authenticated;
+-- security_invoker: the view must not bypass RLS on time_entries.
+ALTER VIEW time_tracking_summary SET (security_invoker = true);
+REVOKE ALL ON time_tracking_summary FROM anon;
+GRANT SELECT ON time_tracking_summary TO authenticated;
 
 -- Draft is the working status: cards of sent/paid invoices are locked, leaving draft refreshes the snapshot.
 CREATE OR REPLACE FUNCTION card_invoice_locked(target_card_id BIGINT)
@@ -214,15 +217,26 @@ $$;
 ALTER TABLE app_settings ENABLE ROW LEVEL SECURITY; ALTER TABLE workspaces ENABLE ROW LEVEL SECURITY; ALTER TABLE boards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cards ENABLE ROW LEVEL SECURITY; ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
 ALTER TABLE invoice_cards ENABLE ROW LEVEL SECURITY; ALTER TABLE time_entries ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow all operations on app_settings" ON app_settings FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all operations on workspaces" ON workspaces FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all operations on boards" ON boards FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all operations on cards" ON cards FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all operations on invoices" ON invoices FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all operations on invoice_cards" ON invoice_cards FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Allow all operations on time_entries" ON time_entries FOR ALL USING (true) WITH CHECK (true);
-GRANT EXECUTE ON FUNCTION card_invoice_locked(BIGINT) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION set_invoice_status(UUID, TEXT) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION delete_invoice(UUID) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION effective_hourly_rate(BIGINT) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION create_invoice_with_cards(BIGINT, BIGINT[], TEXT, NUMERIC) TO anon, authenticated;
+-- Only signed-in users (Supabase Auth) have access; they all share the same data.
+DO $$
+DECLARE table_name TEXT;
+BEGIN
+    FOREACH table_name IN ARRAY ARRAY['app_settings', 'workspaces', 'boards', 'cards', 'invoices', 'invoice_cards', 'time_entries'] LOOP
+        EXECUTE format('CREATE POLICY %I ON %I FOR ALL TO authenticated USING (true) WITH CHECK (true)',
+                       'Authenticated users have full access to ' || table_name, table_name);
+        EXECUTE format('REVOKE ALL ON %I FROM anon', table_name);
+        EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE ON %I TO authenticated', table_name);
+    END LOOP;
+END;
+$$;
+-- Functions are executable by PUBLIC by default.
+REVOKE EXECUTE ON FUNCTION card_invoice_locked(BIGINT) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION set_invoice_status(UUID, TEXT) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION delete_invoice(UUID) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION effective_hourly_rate(BIGINT) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION create_invoice_with_cards(BIGINT, BIGINT[], TEXT, NUMERIC) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION card_invoice_locked(BIGINT) TO authenticated;
+GRANT EXECUTE ON FUNCTION set_invoice_status(UUID, TEXT) TO authenticated;
+GRANT EXECUTE ON FUNCTION delete_invoice(UUID) TO authenticated;
+GRANT EXECUTE ON FUNCTION effective_hourly_rate(BIGINT) TO authenticated;
+GRANT EXECUTE ON FUNCTION create_invoice_with_cards(BIGINT, BIGINT[], TEXT, NUMERIC) TO authenticated;
