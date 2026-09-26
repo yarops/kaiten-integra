@@ -1,20 +1,16 @@
 import { create } from 'zustand'
+import { CardsSearch } from '../lib/cards-search'
 
 /**
- * Configuration store for selected space and board.
+ * Remembers the last cards view selection, so navigating back to it restores the workspace and board.
+ * The URL stays the source of truth.
  */
 interface ConfigState {
-    selectedWorkspaceId: number | null
-    selectedBoardId: number | null
-    setSelectedWorkspace: (workspaceId: number | null) => void
-    setSelectedBoard: (boardId: number | null) => void
+    cardsSearch: CardsSearch
+    setCardsSearch: (search: CardsSearch) => void
 }
 
 export const useConfigStore = create<ConfigState>((set) => ({
-    selectedWorkspaceId: null,
-    selectedBoardId: null,
-    setSelectedWorkspace: (workspaceId: number | null) =>
-        set({ selectedWorkspaceId: workspaceId, selectedBoardId: null }),
-    setSelectedBoard: (boardId: number | null) =>
-        set({ selectedBoardId: boardId }),
+    cardsSearch: {},
+    setCardsSearch: (cardsSearch: CardsSearch) => set({ cardsSearch }),
 }))
