@@ -365,9 +365,13 @@
 .archived-row { opacity: .55; }
 .card-status small { display: block; color: #aaa; margin-top: .3rem; }
 .card-status .invoice-link { display: block; margin-top: .3rem; padding: 0; border: none; background: none; color: #aaa; font-size: .8rem; text-decoration: underline; cursor: pointer; }
+.btn-danger { background: #c0392b; color: white; border-color: #c0392b; }
 .modal-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; background: rgba(0, 0, 0, .7); }
-.entity-form { width: min(520px, 100%); display: grid; gap: 1rem; padding: 1.5rem; border: 1px solid #444; border-radius: 10px; background: #1a1a1a; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
-.entity-form h2 { margin: 0; }
+.modal { width: min(520px, 100%); max-height: calc(100vh - 2rem); overflow-y: auto; display: grid; gap: 1rem; padding: 1.5rem; border: 1px solid #444; border-radius: 10px; background: #1a1a1a; box-shadow: 0 20px 60px rgba(0,0,0,.45); outline: none; }
+.modal.dialog { width: min(420px, 100%); }
+.modal-title { margin: 0; font-size: 1.4rem; }
+.dialog-message { color: #ccc; white-space: pre-line; }
+.entity-form { display: grid; gap: 1rem; }
 .entity-form label { display: grid; gap: .4rem; color: #bbb; }
 .entity-form input, .entity-form textarea, .entity-form select { box-sizing: border-box; width: 100%; padding: .7rem; border: 1px solid #444; border-radius: 5px; background: #242424; color: white; }
 .form-actions { justify-content: flex-end; }

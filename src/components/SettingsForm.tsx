@@ -1,10 +1,13 @@
 import { FormEvent, useEffect, useState } from 'react'
 import { useAppSettings, useUpdateAppSettings } from '../api/settings'
 import { formatHourlyRateInput, parseHourlyRate } from '../lib/rates'
+import { Modal } from './Modal'
+import { useDialogs } from './dialogs/dialogs-context'
 
 interface SettingsFormProps { onClose: () => void }
 
 export const SettingsForm = ({ onClose }: SettingsFormProps) => {
+    const dialogs = useDialogs()
     const { data: settings, isLoading } = useAppSettings()
     const updateSettings = useUpdateAppSettings()
     const [hourlyRate, setHourlyRate] = useState('')
@@ -21,14 +24,12 @@ export const SettingsForm = ({ onClose }: SettingsFormProps) => {
             await updateSettings.mutateAsync({ default_hourly_rate: rate })
             onClose()
         } catch (error) {
-            console.error(error)
-            alert('Failed to save settings.')
+            dialogs.error('Failed to save settings.', error)
         }
     }
 
-    return <div className="modal-overlay" onClick={onClose}>
-        <form className="entity-form" onSubmit={submit} onClick={(event) => event.stopPropagation()}>
-            <h2>Settings</h2>
+    return <Modal title={'Settings'} onClose={onClose}>
+        <form className="entity-form" onSubmit={submit}>
             <label>Default hourly rate, ₽
                 <input autoFocus type="number" min="0" step="0.01" inputMode="decimal" required disabled={isLoading}
                     value={hourlyRate} onChange={(event) => setHourlyRate(event.target.value)} />
@@ -36,5 +37,5 @@ export const SettingsForm = ({ onClose }: SettingsFormProps) => {
             </label>
             <div className="form-actions"><button type="button" onClick={onClose}>Cancel</button><button className="btn-primary" type="submit" disabled={isLoading || updateSettings.isPending}>{updateSettings.isPending ? 'Saving…' : 'Save'}</button></div>
         </form>
-    </div>
+    </Modal>
 }

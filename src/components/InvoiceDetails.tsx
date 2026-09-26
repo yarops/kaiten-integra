@@ -2,6 +2,7 @@ import { useInvoiceWithCards, useUpdateInvoiceStatus } from '../api/invoices'
 import { getStatusChangeConfirmMessage } from '../lib/invoice-rules'
 import { calculateCost, formatCurrency, formatHourlyRate } from '../lib/rates'
 import { InvoiceCard } from '../types/invoice'
+import { useDialogs } from './dialogs/dialogs-context'
 import './InvoiceDetails.css'
 
 interface InvoiceDetailsProps {
@@ -74,13 +75,14 @@ const groupCardsByPrimaryTag = (cards: InvoiceCard[]): Map<string, InvoiceCard[]
 }
 
 export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
+    const dialogs = useDialogs()
     const { data: invoice, isLoading } = useInvoiceWithCards(invoiceId)
     const updateStatusMutation = useUpdateInvoiceStatus()
 
     const handleStatusChange = async (newStatus: 'draft' | 'sent' | 'paid') => {
         if (!invoice) return
 
-        if (!confirm(getStatusChangeConfirmMessage(invoice.status, newStatus))) return
+        if (!await dialogs.confirm({ title: 'Change invoice status', message: getStatusChangeConfirmMessage(invoice.status, newStatus) })) return
 
         try {
             await updateStatusMutation.mutateAsync({
@@ -88,8 +90,7 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
                 status: newStatus,
             })
         } catch (error) {
-            console.error('Error updating invoice status:', error)
-            alert(`Failed to update invoice status.${error instanceof Error ? ` ${error.message}` : ''}`)
+            dialogs.error('Failed to update invoice status.', error)
         }
     }
 

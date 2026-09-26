@@ -3,10 +3,13 @@ import { useAppSettings } from '../api/settings'
 import { useCreateWorkspace, useUpdateWorkspace } from '../api/workspaces'
 import { formatHourlyRate, formatHourlyRateInput, parseHourlyRate } from '../lib/rates'
 import { Workspace } from '../types/work-management'
+import { Modal } from './Modal'
+import { useDialogs } from './dialogs/dialogs-context'
 
 interface WorkspaceFormProps { workspace?: Workspace; onSaved?: (workspace: Workspace) => void; onClose: () => void }
 
 export const WorkspaceForm = ({ workspace, onSaved, onClose }: WorkspaceFormProps) => {
+    const dialogs = useDialogs()
     const createWorkspace = useCreateWorkspace()
     const updateWorkspace = useUpdateWorkspace()
     const { data: settings } = useAppSettings()
@@ -25,16 +28,14 @@ export const WorkspaceForm = ({ workspace, onSaved, onClose }: WorkspaceFormProp
             onSaved?.(saved)
             onClose()
         } catch (error) {
-            console.error(error)
-            alert('Failed to save workspace.')
+            dialogs.error('Failed to save workspace.', error)
         }
     }
 
     const inherited = settings ? `Default: ${formatHourlyRate(settings.default_hourly_rate)}` : 'Default rate'
 
-    return <div className="modal-overlay" onClick={onClose}>
-        <form className="entity-form" onSubmit={submit} onClick={(event) => event.stopPropagation()}>
-            <h2>{workspace ? 'Workspace settings' : 'New workspace'}</h2>
+    return <Modal title={workspace ? 'Workspace settings' : 'New workspace'} onClose={onClose}>
+        <form className="entity-form" onSubmit={submit}>
             <label>Title<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} required /></label>
             <label>Hourly rate, ₽
                 <input type="number" min="0" step="0.01" inputMode="decimal" value={hourlyRate} placeholder={inherited}
@@ -43,5 +44,5 @@ export const WorkspaceForm = ({ workspace, onSaved, onClose }: WorkspaceFormProp
             </label>
             <div className="form-actions"><button type="button" onClick={onClose}>Cancel</button><button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></div>
         </form>
-    </div>
+    </Modal>
 }

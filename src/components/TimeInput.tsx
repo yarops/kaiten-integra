@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { TimeInputProps, CreateTimeEntryData, TimeEntry } from '../types/time-tracking'
 import { useCreateTimeEntry, useTimeEntriesForCard, useDeleteTimeEntry } from '../api/time-entries'
+import { Modal } from './Modal'
+import { useDialogs } from './dialogs/dialogs-context'
 import './TimeInput.css'
 
 /**
@@ -36,6 +38,7 @@ export const TimeInput: React.FC<TimeInputProps> = ({
     const [description, setDescription] = useState('')
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const dialogs = useDialogs()
 
     const createTimeEntryMutation = useCreateTimeEntry()
     const { data: timeEntries = [], refetch: refetchTimeEntries } = useTimeEntriesForCard(cardId)
@@ -102,14 +105,13 @@ export const TimeInput: React.FC<TimeInputProps> = ({
     }
 
     const handleDeleteEntry = async (entryId: string) => {
-        if (!confirm('Are you sure you want to delete this time entry?')) return
+        if (!await dialogs.confirm({ title: 'Delete time entry', message: 'Are you sure you want to delete this time entry?', confirmLabel: 'Delete', danger: true })) return
 
         try {
             await deleteTimeEntryMutation.mutateAsync(entryId)
             await refetchTimeEntries()
         } catch (error) {
-            console.error('Failed to delete time entry:', error)
-            alert('Failed to delete time entry. Please try again.')
+            dialogs.error('Failed to delete time entry.', error)
         }
     }
 
@@ -121,129 +123,126 @@ export const TimeInput: React.FC<TimeInputProps> = ({
     const totalMinutes = totalTimeSpent % 60
 
     return (
-        <div className="time-input-overlay" onClick={(e) => e.stopPropagation()}>
-            <div className="time-input-modal" onClick={(e) => e.stopPropagation()}>
-                <div className="time-input-header">
-                    <h3 className="time-input-title">Track Time</h3>
-                    <p className="time-input-card-info">Card: {cardTitle}</p>
-                    {totalTimeSpent > 0 && (
-                        <p className="time-input-card-info">
-                            Total time spent: {formatTime(totalHours, totalMinutes)}
-                        </p>
-                    )}
-                </div>
-
-                <form className="time-input-form" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
-                    <div className="time-input-row">
-                        <div className="time-input-group">
-                            <label htmlFor="hours" className="time-input-label">Hours</label>
-                            <input
-                                id="hours"
-                                type="number"
-                                min="0"
-                                max="23"
-                                value={hours}
-                                onChange={(e) => setHours(parseInt(e.target.value) || 0)}
-                                className={`time-input-field ${errors.hours ? 'error' : ''}`}
-                            />
-                            {errors.hours && <div className="time-input-error">{errors.hours}</div>}
-                        </div>
-
-                        <div className="time-input-group">
-                            <label htmlFor="minutes" className="time-input-label">Minutes</label>
-                            <input
-                                id="minutes"
-                                type="number"
-                                min="0"
-                                max="59"
-                                value={minutes}
-                                onChange={(e) => setMinutes(parseInt(e.target.value) || 0)}
-                                className={`time-input-field ${errors.minutes ? 'error' : ''}`}
-                            />
-                            {errors.minutes && <div className="time-input-error">{errors.minutes}</div>}
-                        </div>
-
-                        <div className="time-input-group">
-                            <label htmlFor="date" className="time-input-label">Date</label>
-                            <input
-                                id="date"
-                                type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className={`time-input-field ${errors.date ? 'error' : ''}`}
-                            />
-                            {errors.date && <div className="time-input-error">{errors.date}</div>}
-                        </div>
-                    </div>
-
-                    {errors.time && <div className="time-input-error">{errors.time}</div>}
-
-                    <div className="time-input-description">
-                        <label htmlFor="description" className="time-input-label">Description (optional)</label>
-                        <textarea
-                            id="description"
-                            value={description}
-                            onChange={(e) => setDescription(e.target.value)}
-                            className="time-input-field"
-                            placeholder="What did you work on?"
-                        />
-                    </div>
-
-                    {errors.submit && <div className="time-input-error">{errors.submit}</div>}
-
-                    <div className="time-input-actions">
-                        <button
-                            type="button"
-                            className="time-input-btn time-input-btn-cancel"
-                            onClick={onCancel}
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            type="submit"
-                            className="time-input-btn time-input-btn-save"
-                            disabled={createTimeEntryMutation.isPending}
-                        >
-                            {createTimeEntryMutation.isPending ? 'Saving...' : 'Save Time'}
-                        </button>
-                    </div>
-                </form>
-
-                {timeEntries.length > 0 && (
-                    <div className="time-entry-list">
-                        <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600' }}>
-                            Previous Entries
-                        </h4>
-                        {timeEntries.map((entry: TimeEntry) => (
-                            <div key={entry.id} className="time-entry-item">
-                                <div className="time-entry-info">
-                                    <div className="time-entry-time">
-                                        {formatTime(entry.hours, entry.minutes)}
-                                    </div>
-                                    <div className="time-entry-date">
-                                        {formatDate(entry.date)}
-                                    </div>
-                                    {entry.description && (
-                                        <div className="time-entry-description">
-                                            {entry.description}
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="time-entry-actions">
-                                    <button
-                                        type="button"
-                                        className="time-entry-btn"
-                                        onClick={() => handleDeleteEntry(entry.id)}
-                                        disabled={deleteTimeEntryMutation.isPending}
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+        <Modal title="Track Time" onClose={() => onCancel?.()}>
+            <div className="time-input-header">
+                <p className="time-input-card-info">Card: {cardTitle}</p>
+                {totalTimeSpent > 0 && (
+                    <p className="time-input-card-info">
+                        Total time spent: {formatTime(totalHours, totalMinutes)}
+                    </p>
                 )}
             </div>
-        </div>
+
+            <form className="time-input-form" onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+                <div className="time-input-row">
+                    <div className="time-input-group">
+                        <label htmlFor="hours" className="time-input-label">Hours</label>
+                        <input
+                            id="hours"
+                            type="number"
+                            min="0"
+                            max="23"
+                            value={hours}
+                            onChange={(e) => setHours(parseInt(e.target.value) || 0)}
+                            className={`time-input-field ${errors.hours ? 'error' : ''}`}
+                        />
+                        {errors.hours && <div className="time-input-error">{errors.hours}</div>}
+                    </div>
+
+                    <div className="time-input-group">
+                        <label htmlFor="minutes" className="time-input-label">Minutes</label>
+                        <input
+                            id="minutes"
+                            type="number"
+                            min="0"
+                            max="59"
+                            value={minutes}
+                            onChange={(e) => setMinutes(parseInt(e.target.value) || 0)}
+                            className={`time-input-field ${errors.minutes ? 'error' : ''}`}
+                        />
+                        {errors.minutes && <div className="time-input-error">{errors.minutes}</div>}
+                    </div>
+
+                    <div className="time-input-group">
+                        <label htmlFor="date" className="time-input-label">Date</label>
+                        <input
+                            id="date"
+                            type="date"
+                            value={date}
+                            onChange={(e) => setDate(e.target.value)}
+                            className={`time-input-field ${errors.date ? 'error' : ''}`}
+                        />
+                        {errors.date && <div className="time-input-error">{errors.date}</div>}
+                    </div>
+                </div>
+
+                {errors.time && <div className="time-input-error">{errors.time}</div>}
+
+                <div className="time-input-description">
+                    <label htmlFor="description" className="time-input-label">Description (optional)</label>
+                    <textarea
+                        id="description"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        className="time-input-field"
+                        placeholder="What did you work on?"
+                    />
+                </div>
+
+                {errors.submit && <div className="time-input-error">{errors.submit}</div>}
+
+                <div className="time-input-actions">
+                    <button
+                        type="button"
+                        className="time-input-btn time-input-btn-cancel"
+                        onClick={onCancel}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="submit"
+                        className="time-input-btn time-input-btn-save"
+                        disabled={createTimeEntryMutation.isPending}
+                    >
+                        {createTimeEntryMutation.isPending ? 'Saving...' : 'Save Time'}
+                    </button>
+                </div>
+            </form>
+
+            {timeEntries.length > 0 && (
+                <div className="time-entry-list">
+                    <h4 style={{ margin: '0 0 12px 0', fontSize: '14px', fontWeight: '600' }}>
+                        Previous Entries
+                    </h4>
+                    {timeEntries.map((entry: TimeEntry) => (
+                        <div key={entry.id} className="time-entry-item">
+                            <div className="time-entry-info">
+                                <div className="time-entry-time">
+                                    {formatTime(entry.hours, entry.minutes)}
+                                </div>
+                                <div className="time-entry-date">
+                                    {formatDate(entry.date)}
+                                </div>
+                                {entry.description && (
+                                    <div className="time-entry-description">
+                                        {entry.description}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="time-entry-actions">
+                                <button
+                                    type="button"
+                                    className="time-entry-btn"
+                                    onClick={() => handleDeleteEntry(entry.id)}
+                                    disabled={deleteTimeEntryMutation.isPending}
+                                >
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </Modal>
     )
 }

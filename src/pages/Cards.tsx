@@ -11,6 +11,7 @@ import { activeCardsOnly, canInvoiceCard, isCardLocked, retainInvoiceableSelecti
 import { TimeInput } from '../components/TimeInput'
 import { CardForm } from '../components/CardForm'
 import { WorkspaceForm } from '../components/WorkspaceForm'
+import { useDialogs } from '../components/dialogs/dialogs-context'
 
 const formatTime = (minutes = 0) => minutes
     ? `${Math.floor(minutes / 60) ? `${Math.floor(minutes / 60)}h ` : ''}${minutes % 60 ? `${minutes % 60}m` : ''}`.trim()
@@ -38,6 +39,7 @@ export function CardsHeader() {
     const setCardsSearch = useConfigStore((state) => state.setCardsSearch)
     const { selectedWorkspaceId, selectedBoardId, showArchived } = useCardsSelection()
     const [editingWorkspace, setEditingWorkspace] = useState<Workspace | 'new' | null>(null)
+    const dialogs = useDialogs()
 
     const { data: workspaces = [], isLoading: loadingWorkspaces } = useWorkspaces(showArchived)
     const { data: boards = [], isLoading: loadingBoards } = useBoards(selectedWorkspaceId, showArchived)
@@ -67,24 +69,33 @@ export function CardsHeader() {
     }, [boards, loadingBoards, navigate, selectedBoardId])
 
     const promptBoardTitle = async (current?: string) => {
-        const title = prompt(`${current ? 'Rename' : 'New'} board:`, current || '')?.trim()
-        if (!title || !selectedWorkspaceId) return
+        if (!selectedWorkspaceId) return
+        const title = await dialogs.prompt({ title: current ? 'Rename board' : 'New board', label: 'Title', defaultValue: current, confirmLabel: 'Save', required: true })
+        if (!title) return
         try {
             if (current && selectedBoardId) await updateBoard.mutateAsync({ id: selectedBoardId, changes: { title } })
             else { const result = await createBoard.mutateAsync({ workspace_id: selectedWorkspaceId, title }); setSelectedBoard(result.id) }
-        } catch (error) { console.error(error); alert('Failed to save board.') }
+        } catch (error) { dialogs.error('Failed to save board.', error) }
     }
+
+    const confirmArchive = (kind: string, entity: { title: string; archived: boolean }) => dialogs.confirm({
+        title: `${entity.archived ? 'Restore' : 'Archive'} ${kind}`,
+        message: `${entity.archived ? 'Restore' : 'Archive'} ${kind} “${entity.title}”?`,
+        confirmLabel: entity.archived ? 'Restore' : 'Archive',
+    })
 
     const toggleWorkspaceArchive = async () => {
         const workspace = workspaces.find((item) => item.id === selectedWorkspaceId)
-        if (!workspace || !confirm(`${workspace.archived ? 'Restore' : 'Archive'} workspace “${workspace.title}”?`)) return
-        await updateWorkspace.mutateAsync({ id: workspace.id, changes: { archived: !workspace.archived } })
+        if (!workspace || !await confirmArchive('workspace', workspace)) return
+        try { await updateWorkspace.mutateAsync({ id: workspace.id, changes: { archived: !workspace.archived } }) }
+        catch (error) { dialogs.error(`Failed to ${workspace.archived ? 'restore' : 'archive'} workspace.`, error); return }
         if (!workspace.archived && !showArchived) setSelectedWorkspace(null)
     }
     const toggleBoardArchive = async () => {
         const board = boards.find((item) => item.id === selectedBoardId)
-        if (!board || !confirm(`${board.archived ? 'Restore' : 'Archive'} board “${board.title}”?`)) return
-        await updateBoard.mutateAsync({ id: board.id, changes: { archived: !board.archived } })
+        if (!board || !await confirmArchive('board', board)) return
+        try { await updateBoard.mutateAsync({ id: board.id, changes: { archived: !board.archived } }) }
+        catch (error) { dialogs.error(`Failed to ${board.archived ? 'restore' : 'archive'} board.`, error); return }
         if (!board.archived && !showArchived) setSelectedBoard(null)
     }
 
@@ -115,6 +126,7 @@ export function CardsPage() {
     const [selectedCardIds, setSelectedCardIds] = useState<Set<number>>(new Set())
     const [timeCardId, setTimeCardId] = useState<number | null>(null)
     const [editingCard, setEditingCard] = useState<Card | 'new' | null>(null)
+    const dialogs = useDialogs()
 
     const { data: boards = [] } = useBoards(selectedWorkspaceId, showArchived)
     const { data: cards = [], isLoading: loadingCards } = useCards(selectedBoardId || undefined, showArchived)
@@ -133,8 +145,10 @@ export function CardsPage() {
 
     const toggleCardArchive = async (card: Card) => {
         if (card.invoice) return
-        if (!confirm(`${card.manually_archived ? 'Restore' : 'Archive'} card “${card.title}”?`)) return
-        await updateCard.mutateAsync({ id: card.id, changes: { manually_archived: !card.manually_archived } })
+        const action = card.manually_archived ? 'Restore' : 'Archive'
+        if (!await dialogs.confirm({ title: `${action} card`, message: `${action} card “${card.title}”?`, confirmLabel: action })) return
+        try { await updateCard.mutateAsync({ id: card.id, changes: { manually_archived: !card.manually_archived } }) }
+        catch (error) { dialogs.error(`Failed to ${action.toLowerCase()} card.`, error) }
     }
 
     const toggleCard = (card: Card) => {
@@ -150,8 +164,7 @@ export function CardsPage() {
             await createInvoice.mutateAsync({ data: { board_id: selectedBoardId }, cards: selectedCards })
             setSelectedCardIds(new Set()); navigate({ to: '/invoices' })
         } catch (error) {
-            console.error(error)
-            alert(`Failed to create invoice.${error instanceof Error ? ` ${error.message}` : ''}`)
+            dialogs.error('Failed to create invoice.', error)
         }
     }
 

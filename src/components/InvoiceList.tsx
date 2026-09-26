@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus } from '../api/invoices'
 import { getStatusChangeConfirmMessage } from '../lib/invoice-rules'
 import { Invoice } from '../types/invoice'
+import { useDialogs } from './dialogs/dialogs-context'
 import './InvoiceList.css'
 
 interface InvoiceListProps {
@@ -53,6 +54,7 @@ const getStatusLabel = (status: string): string => {
 }
 
 export const InvoiceList = ({ onSelectInvoice }: InvoiceListProps) => {
+    const dialogs = useDialogs()
     const { data: invoices, isLoading } = useInvoices()
     const deleteInvoiceMutation = useDeleteInvoice()
     const updateStatusMutation = useUpdateInvoiceStatus()
@@ -60,28 +62,26 @@ export const InvoiceList = ({ onSelectInvoice }: InvoiceListProps) => {
     const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
 
     const handleDelete = async (invoiceId: string) => {
-        if (!confirm('Are you sure you want to delete this invoice?')) return
+        if (!await dialogs.confirm({ title: 'Delete invoice', message: 'Are you sure you want to delete this invoice?', confirmLabel: 'Delete', danger: true })) return
 
         setDeletingId(invoiceId)
         try {
             await deleteInvoiceMutation.mutateAsync(invoiceId)
         } catch (error) {
-            console.error('Error deleting invoice:', error)
-            alert('Failed to delete invoice')
+            dialogs.error('Failed to delete invoice.', error)
         } finally {
             setDeletingId(null)
         }
     }
 
     const handleStatusChange = async (invoice: Invoice, status: Invoice['status']) => {
-        if (!confirm(getStatusChangeConfirmMessage(invoice.status, status))) return
+        if (!await dialogs.confirm({ title: 'Change invoice status', message: getStatusChangeConfirmMessage(invoice.status, status) })) return
 
         setUpdatingStatusId(invoice.id)
         try {
             await updateStatusMutation.mutateAsync({ invoiceId: invoice.id, status })
         } catch (error) {
-            console.error('Error updating invoice status:', error)
-            alert(`Failed to update invoice status.${error instanceof Error ? ` ${error.message}` : ''}`)
+            dialogs.error('Failed to update invoice status.', error)
         } finally {
             setUpdatingStatusId(null)
         }

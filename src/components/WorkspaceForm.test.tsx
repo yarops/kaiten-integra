@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { DialogProvider } from './dialogs/DialogProvider'
 import { Workspace } from '../types/work-management'
 
 const mutations = vi.hoisted(() => ({ create: vi.fn(), update: vi.fn() }))
@@ -28,7 +29,7 @@ describe('WorkspaceForm', () => {
         const created = { ...workspace, hourly_rate: null }
         mutations.create.mockResolvedValueOnce(created)
         const onSaved = vi.fn()
-        render(<WorkspaceForm onSaved={onSaved} onClose={vi.fn()} />)
+        render(<WorkspaceForm onSaved={onSaved} onClose={vi.fn()} />, { wrapper: DialogProvider })
 
         expect(screen.getByLabelText(/Hourly rate/)).toHaveProperty('placeholder', expect.stringMatching(/1\s000/))
         fireEvent.change(screen.getByLabelText('Title'), { target: { value: ' Acme ' } })
@@ -40,7 +41,7 @@ describe('WorkspaceForm', () => {
 
     it('clears a workspace rate override', async () => {
         mutations.update.mockResolvedValueOnce({ ...workspace, hourly_rate: null })
-        render(<WorkspaceForm workspace={workspace} onClose={vi.fn()} />)
+        render(<WorkspaceForm workspace={workspace} onClose={vi.fn()} />, { wrapper: DialogProvider })
 
         const rate = screen.getByLabelText(/Hourly rate/)
         expect(rate).toHaveProperty('value', '1500')

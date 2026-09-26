@@ -1,10 +1,13 @@
 import { FormEvent, useState } from 'react'
 import { useCreateCard, useUpdateCard } from '../api/cards'
 import { Card, CardStatus, cardStatusLabels } from '../types/work-management'
+import { Modal } from './Modal'
+import { useDialogs } from './dialogs/dialogs-context'
 
 interface CardFormProps { card?: Card; boardId: number; onClose: () => void }
 
 export const CardForm = ({ card, boardId, onClose }: CardFormProps) => {
+    const dialogs = useDialogs()
     const createCard = useCreateCard()
     const updateCard = useUpdateCard()
     const saving = createCard.isPending || updateCard.isPending
@@ -22,14 +25,12 @@ export const CardForm = ({ card, boardId, onClose }: CardFormProps) => {
             else await createCard.mutateAsync({ board_id: boardId, ...values })
             onClose()
         } catch (error) {
-            console.error(error)
-            alert('Failed to save card.')
+            dialogs.error('Failed to save card.', error)
         }
     }
 
-    return <div className="modal-overlay" onClick={onClose}>
-        <form className="entity-form" onSubmit={submit} onClick={(event) => event.stopPropagation()}>
-            <h2>{card ? 'Edit card' : 'New card'}</h2>
+    return <Modal title={card ? 'Edit card' : 'New card'} onClose={onClose}>
+        <form className="entity-form" onSubmit={submit}>
             <label>Title<input autoFocus value={title} onChange={(event) => setTitle(event.target.value)} required /></label>
             <label>Description<textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={4} /></label>
             <label>Status<select value={status} onChange={(event) => setStatus(event.target.value as CardStatus)}>
@@ -38,5 +39,5 @@ export const CardForm = ({ card, boardId, onClose }: CardFormProps) => {
             <label>Tags (comma-separated)<input value={tags} onChange={(event) => setTags(event.target.value)} /></label>
             <div className="form-actions"><button type="button" onClick={onClose}>Cancel</button><button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></div>
         </form>
-    </div>
+    </Modal>
 }
