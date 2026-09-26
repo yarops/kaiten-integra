@@ -28,16 +28,6 @@ export interface CreateTimeEntryData {
 }
 
 /**
- * Input data for updating an existing time entry.
- */
-export interface UpdateTimeEntryData {
-    hours?: number
-    minutes?: number
-    description?: string
-    date?: string
-}
-
-/**
  * Summary of time tracking for a card.
  */
 export interface TimeTrackingSummary {
@@ -55,8 +45,6 @@ export interface TimeTrackingSummary {
 export interface TimeInputProps {
     cardId: number
     cardTitle: string
-    initialHours?: number
-    initialMinutes?: number
     onSave: (data: CreateTimeEntryData) => Promise<void>
     onCancel?: () => void
 }

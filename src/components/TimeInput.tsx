@@ -28,13 +28,11 @@ const formatDate = (dateString: string): string => {
 export const TimeInput: React.FC<TimeInputProps> = ({
     cardId,
     cardTitle,
-    initialHours = 0,
-    initialMinutes = 0,
     onSave,
     onCancel,
 }) => {
-    const [hours, setHours] = useState(initialHours)
-    const [minutes, setMinutes] = useState(initialMinutes)
+    const [hours, setHours] = useState(0)
+    const [minutes, setMinutes] = useState(0)
     const [description, setDescription] = useState('')
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [errors, setErrors] = useState<Record<string, string>>({})
@@ -46,12 +44,12 @@ export const TimeInput: React.FC<TimeInputProps> = ({
 
     // Reset form when card changes.
     useEffect(() => {
-        setHours(initialHours)
-        setMinutes(initialMinutes)
+        setHours(0)
+        setMinutes(0)
         setDescription('')
         setDate(new Date().toISOString().split('T')[0])
         setErrors({})
-    }, [cardId, initialHours, initialMinutes])
+    }, [cardId])
 
     const validateForm = (): boolean => {
         const newErrors: Record<string, string> = {}

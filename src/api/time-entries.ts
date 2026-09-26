@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { TimeEntry, CreateTimeEntryData, UpdateTimeEntryData, TimeTrackingSummary } from '../types/time-tracking'
+import { TimeEntry, CreateTimeEntryData, TimeTrackingSummary } from '../types/time-tracking'
 
 /**
  * Creates a new time entry.
@@ -14,24 +14,6 @@ export const createTimeEntry = async (data: CreateTimeEntryData): Promise<TimeEn
 
     if (error) {
         throw new Error(`Failed to create time entry: ${error.message}`)
-    }
-
-    return result
-}
-
-/**
- * Updates an existing time entry.
- */
-export const updateTimeEntry = async (id: string, data: UpdateTimeEntryData): Promise<TimeEntry> => {
-    const { data: result, error } = await supabase
-        .from('time_entries')
-        .update(data)
-        .eq('id', id)
-        .select()
-        .single()
-
-    if (error) {
-        throw new Error(`Failed to update time entry: ${error.message}`)
     }
 
     return result
@@ -66,23 +48,6 @@ export const getTimeEntriesForCard = async (cardId: number): Promise<TimeEntry[]
     }
 
     return data || []
-}
-
-/**
- * Gets time tracking summary for a specific card.
- */
-export const getTimeTrackingSummary = async (cardId: number): Promise<TimeTrackingSummary | null> => {
-    const { data, error } = await supabase
-        .from('time_tracking_summary')
-        .select('*')
-        .eq('card_id', cardId)
-        .single()
-
-    if (error && error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        throw new Error(`Failed to fetch time tracking summary: ${error.message}`)
-    }
-
-    return data
 }
 
 /**
@@ -126,25 +91,6 @@ export const useCreateTimeEntry = () => {
         onSuccess: (_, variables) => {
             // Invalidate time entries queries for this card.
             queryClient.invalidateQueries({ queryKey: ['timeEntries', variables.card_id] })
-            queryClient.invalidateQueries({ queryKey: ['timeTrackingSummary', variables.card_id] })
-            queryClient.invalidateQueries({ queryKey: ['timeTrackingSummaries'] })
-        },
-    })
-}
-
-/**
- * Hook for updating time entries.
- */
-export const useUpdateTimeEntry = () => {
-    const queryClient = useQueryClient()
-
-    return useMutation({
-        mutationFn: ({ id, data }: { id: string; data: UpdateTimeEntryData }) =>
-            updateTimeEntry(id, data),
-        onSuccess: (result) => {
-            // Invalidate time entries queries for this card.
-            queryClient.invalidateQueries({ queryKey: ['timeEntries', result.card_id] })
-            queryClient.invalidateQueries({ queryKey: ['timeTrackingSummary', result.card_id] })
             queryClient.invalidateQueries({ queryKey: ['timeTrackingSummaries'] })
         },
     })
@@ -161,7 +107,6 @@ export const useDeleteTimeEntry = () => {
         onSuccess: () => {
             // We need to invalidate all time-related queries since we don't know the card_id.
             queryClient.invalidateQueries({ queryKey: ['timeEntries'] })
-            queryClient.invalidateQueries({ queryKey: ['timeTrackingSummary'] })
             queryClient.invalidateQueries({ queryKey: ['timeTrackingSummaries'] })
         },
     })
@@ -174,17 +119,6 @@ export const useTimeEntriesForCard = (cardId: number) => {
     return useQuery({
         queryKey: ['timeEntries', cardId],
         queryFn: () => getTimeEntriesForCard(cardId),
-        enabled: !!cardId,
-    })
-}
-
-/**
- * Hook for fetching time tracking summary for a card.
- */
-export const useTimeTrackingSummary = (cardId: number) => {
-    return useQuery({
-        queryKey: ['timeTrackingSummary', cardId],
-        queryFn: () => getTimeTrackingSummary(cardId),
         enabled: !!cardId,
     })
 }
