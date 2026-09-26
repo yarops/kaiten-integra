@@ -7,6 +7,8 @@ export const cardStatusLabels: Record<CardStatus, string> = {
 export interface Workspace {
     id: number
     title: string
+    /** Overrides the default hourly rate; null inherits it. */
+    hourly_rate: number | null
     archived: boolean
     created_at: string
     updated_at: string

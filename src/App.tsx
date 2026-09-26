@@ -1,17 +1,19 @@
 import { useEffect, useMemo, useState } from 'react'
 import './App.css'
-import { useCreateWorkspace, useUpdateWorkspace, useWorkspaces } from './api/workspaces'
+import { useUpdateWorkspace, useWorkspaces } from './api/workspaces'
 import { useBoards, useCreateBoard, useUpdateBoard } from './api/boards'
 import { useCards, useUpdateCard } from './api/cards'
 import { useCreateInvoice } from './api/invoices'
 import { useTimeTrackingSummaries } from './api/time-entries'
 import { useConfigStore } from './store/config-store'
-import { Card, CardStatus, cardStatusLabels, isCardArchived } from './types/work-management'
+import { Card, CardStatus, cardStatusLabels, isCardArchived, Workspace } from './types/work-management'
 import { activeCardsOnly, canInvoiceCard, retainInvoiceableSelection } from './lib/card-rules'
 import { InvoiceList } from './components/InvoiceList'
 import { InvoiceDetails } from './components/InvoiceDetails'
 import { TimeInput } from './components/TimeInput'
 import { CardForm } from './components/CardForm'
+import { WorkspaceForm } from './components/WorkspaceForm'
+import { SettingsForm } from './components/SettingsForm'
 
 const formatTime = (minutes = 0) => minutes
     ? `${Math.floor(minutes / 60) ? `${Math.floor(minutes / 60)}h ` : ''}${minutes % 60 ? `${minutes % 60}m` : ''}`.trim()
@@ -25,13 +27,14 @@ function App() {
     const [selectedCardIds, setSelectedCardIds] = useState<Set<number>>(new Set())
     const [timeCardId, setTimeCardId] = useState<number | null>(null)
     const [editingCard, setEditingCard] = useState<Card | 'new' | null>(null)
+    const [editingWorkspace, setEditingWorkspace] = useState<Workspace | 'new' | null>(null)
+    const [showSettings, setShowSettings] = useState(false)
     const [showArchived, setShowArchived] = useState(false)
     const { selectedWorkspaceId, selectedBoardId, setSelectedWorkspace, setSelectedBoard } = useConfigStore()
 
     const { data: workspaces = [], isLoading: loadingWorkspaces } = useWorkspaces(showArchived)
     const { data: boards = [], isLoading: loadingBoards } = useBoards(selectedWorkspaceId, showArchived)
     const { data: cards = [], isLoading: loadingCards } = useCards(selectedBoardId || undefined, showArchived)
-    const createWorkspace = useCreateWorkspace()
     const updateWorkspace = useUpdateWorkspace()
     const createBoard = useCreateBoard()
     const updateBoard = useUpdateBoard()
@@ -60,18 +63,13 @@ function App() {
         }
     }, [boards, loadingBoards, selectedBoardId, setSelectedBoard])
 
-    const promptTitle = async (kind: 'workspace' | 'board', current?: string) => {
-        const title = prompt(`${current ? 'Rename' : 'New'} ${kind}:`, current || '')?.trim()
-        if (!title) return
+    const promptBoardTitle = async (current?: string) => {
+        const title = prompt(`${current ? 'Rename' : 'New'} board:`, current || '')?.trim()
+        if (!title || !selectedWorkspaceId) return
         try {
-            if (kind === 'workspace') {
-                if (current && selectedWorkspaceId) await updateWorkspace.mutateAsync({ id: selectedWorkspaceId, changes: { title } })
-                else { const result = await createWorkspace.mutateAsync(title); setSelectedWorkspace(result.id) }
-            } else if (selectedWorkspaceId) {
-                if (current && selectedBoardId) await updateBoard.mutateAsync({ id: selectedBoardId, changes: { title } })
-                else { const result = await createBoard.mutateAsync({ workspace_id: selectedWorkspaceId, title }); setSelectedBoard(result.id) }
-            }
-        } catch (error) { console.error(error); alert(`Failed to save ${kind}.`) }
+            if (current && selectedBoardId) await updateBoard.mutateAsync({ id: selectedBoardId, changes: { title } })
+            else { const result = await createBoard.mutateAsync({ workspace_id: selectedWorkspaceId, title }); setSelectedBoard(result.id) }
+        } catch (error) { console.error(error); alert('Failed to save board.') }
     }
 
     const toggleWorkspaceArchive = async () => {
@@ -121,16 +119,17 @@ function App() {
             <nav className="app-nav">
                 <button className={`nav-btn ${view === 'create' ? 'active' : ''}`} onClick={() => setView('create')}>Cards & Invoice</button>
                 <button className={`nav-btn ${view !== 'create' ? 'active' : ''}`} onClick={() => setView('invoices')}>Invoices</button>
+                <button className="nav-btn" onClick={() => setShowSettings(true)}>Settings</button>
             </nav>
             {view === 'create' && <>
                 <div className="archive-toggle"><label><input type="checkbox" checked={showArchived} onChange={(event) => setShowArchived(event.target.checked)} /> Show archived</label></div>
                 <div className="selectors">
                     <div className="selector-group"><label>Workspace:</label><select value={selectedWorkspaceId || ''} disabled={loadingWorkspaces} onChange={(event) => setSelectedWorkspace(event.target.value ? Number(event.target.value) : null)}>
                         <option value="">Select a workspace</option>{workspaces.map((item) => <option key={item.id} value={item.id}>{item.title}{item.archived ? ' (archived)' : ''}</option>)}
-                    </select><div className="entity-actions"><button onClick={() => promptTitle('workspace')}>+</button><button disabled={!selectedWorkspace} onClick={() => promptTitle('workspace', selectedWorkspace?.title)}>Rename</button><button disabled={!selectedWorkspace} onClick={toggleWorkspaceArchive}>{selectedWorkspace?.archived ? 'Restore' : 'Archive'}</button></div></div>
+                    </select><div className="entity-actions"><button onClick={() => setEditingWorkspace('new')}>+</button><button disabled={!selectedWorkspace} onClick={() => selectedWorkspace && setEditingWorkspace(selectedWorkspace)}>Settings</button><button disabled={!selectedWorkspace} onClick={toggleWorkspaceArchive}>{selectedWorkspace?.archived ? 'Restore' : 'Archive'}</button></div></div>
                     <div className="selector-group"><label>Board:</label><select value={selectedBoardId || ''} disabled={!selectedWorkspaceId || loadingBoards} onChange={(event) => setSelectedBoard(event.target.value ? Number(event.target.value) : null)}>
                         <option value="">Select a board</option>{boards.map((item) => <option key={item.id} value={item.id}>{item.title}{item.archived ? ' (archived)' : ''}</option>)}
-                    </select><div className="entity-actions"><button disabled={!selectedWorkspaceId} onClick={() => promptTitle('board')}>+</button><button disabled={!selectedBoard} onClick={() => promptTitle('board', selectedBoard?.title)}>Rename</button><button disabled={!selectedBoard} onClick={toggleBoardArchive}>{selectedBoard?.archived ? 'Restore' : 'Archive'}</button></div></div>
+                    </select><div className="entity-actions"><button disabled={!selectedWorkspaceId} onClick={() => promptBoardTitle()}>+</button><button disabled={!selectedBoard} onClick={() => promptBoardTitle(selectedBoard?.title)}>Rename</button><button disabled={!selectedBoard} onClick={toggleBoardArchive}>{selectedBoard?.archived ? 'Restore' : 'Archive'}</button></div></div>
                 </div>
             </>}
         </header>
@@ -155,6 +154,9 @@ function App() {
                 </section>)}
         </main>
         {editingCard && selectedBoardId && <CardForm boardId={selectedBoardId} card={editingCard === 'new' ? undefined : editingCard} onClose={() => setEditingCard(null)} />}
+        {editingWorkspace && <WorkspaceForm workspace={editingWorkspace === 'new' ? undefined : editingWorkspace}
+            onSaved={(workspace) => editingWorkspace === 'new' && setSelectedWorkspace(workspace.id)} onClose={() => setEditingWorkspace(null)} />}
+        {showSettings && <SettingsForm onClose={() => setShowSettings(false)} />}
         {timeCardId && <TimeInput cardId={timeCardId} cardTitle={cards.find((card) => card.id === timeCardId)?.title || 'Card'} onSave={async () => setTimeCardId(null)} onCancel={() => setTimeCardId(null)} />}
     </div>
 }

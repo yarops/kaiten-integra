@@ -1,5 +1,6 @@
 import { useInvoiceWithCards, useUpdateInvoiceStatus } from '../api/invoices'
 import { getStatusChangeConfirmMessage } from '../lib/invoice-rules'
+import { calculateCost, formatCurrency, formatHourlyRate } from '../lib/rates'
 import { InvoiceCard } from '../types/invoice'
 import './InvoiceDetails.css'
 
@@ -7,11 +8,6 @@ interface InvoiceDetailsProps {
     invoiceId: string
     onBack: () => void
 }
-
-/**
- * Fixed hourly rate in rubles.
- */
-const HOURLY_RATE = 1000
 
 /**
  * Formats time spent in minutes to a human-readable format.
@@ -25,26 +21,6 @@ const formatTimeSpent = (minutes?: number): string => {
     return `${hours}h ${mins}m`
 }
 
-/**
- * Calculates cost based on time spent in minutes.
- */
-const calculateCost = (minutes?: number): number => {
-    if (!minutes) return 0
-    const hours = minutes / 60
-    return hours * HOURLY_RATE
-}
-
-/**
- * Formats currency amount.
- */
-const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('ru-RU', {
-        style: 'currency',
-        currency: 'RUB',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-    }).format(amount)
-}
 
 /**
  * Returns status badge class based on status.
@@ -141,7 +117,7 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
 
     // Calculate total amount for the invoice.
     const totalAmount = invoice.invoice_cards.reduce((sum, card) => {
-        return sum + calculateCost(card.time_spent)
+        return sum + calculateCost(card.time_spent, invoice.hourly_rate)
     }, 0)
 
     return (
@@ -204,7 +180,7 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
                     </div>
                     <div className="stat-box">
                         <span className="stat-label">Hourly Rate</span>
-                        <span className="stat-value">{formatCurrency(HOURLY_RATE)}/h</span>
+                        <span className="stat-value">{formatHourlyRate(invoice.hourly_rate)}</span>
                     </div>
                     <div className="stat-box stat-box-total">
                         <span className="stat-label">Total Amount</span>
@@ -279,8 +255,8 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
                                                 )}
                                             </td>
                                             <td className="card-time">{formatTimeSpent(card.time_spent)}</td>
-                                            <td className="card-rate">{formatCurrency(HOURLY_RATE)}/h</td>
-                                            <td className="card-amount">{formatCurrency(calculateCost(card.time_spent))}</td>
+                                            <td className="card-rate">{formatHourlyRate(invoice.hourly_rate)}</td>
+                                            <td className="card-amount">{formatCurrency(calculateCost(card.time_spent, invoice.hourly_rate))}</td>
                                             <td className="card-date">
                                                 {card.created_at
                                                     ? new Date(card.created_at).toLocaleDateString()

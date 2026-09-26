@@ -10,6 +10,8 @@ export interface Invoice {
     board_title: string | null
     total_time_spent: number
     total_cards: number
+    /** Rate frozen at invoice creation. */
+    hourly_rate: number
     status: 'draft' | 'sent' | 'paid'
     notes: string | null
     created_at: string

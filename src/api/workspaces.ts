@@ -10,15 +10,17 @@ export const fetchWorkspaces = async (includeArchived = false): Promise<Workspac
     return data || []
 }
 
-export const createWorkspace = async (title: string): Promise<Workspace> => {
-    const { data, error } = await supabase.from('workspaces').insert({ title: title.trim() }).select().single()
+export type WorkspaceInput = Pick<Workspace, 'title' | 'hourly_rate'>
+
+export const createWorkspace = async (input: WorkspaceInput): Promise<Workspace> => {
+    const { data, error } = await supabase.from('workspaces').insert({ ...input, title: input.title.trim() }).select().single()
     if (error) throw error
     return data
 }
 
 export const updateWorkspace = async (
     id: number,
-    changes: Pick<Partial<Workspace>, 'title' | 'archived'>
+    changes: Pick<Partial<Workspace>, 'title' | 'hourly_rate' | 'archived'>
 ): Promise<Workspace> => {
     const { data, error } = await supabase.from('workspaces').update(changes).eq('id', id).select().single()
     if (error) throw error
@@ -38,7 +40,7 @@ export const useCreateWorkspace = () => {
 export const useUpdateWorkspace = () => {
     const client = useQueryClient()
     return useMutation({
-        mutationFn: ({ id, changes }: { id: number; changes: Pick<Partial<Workspace>, 'title' | 'archived'> }) => updateWorkspace(id, changes),
+        mutationFn: ({ id, changes }: { id: number; changes: Pick<Partial<Workspace>, 'title' | 'hourly_rate' | 'archived'> }) => updateWorkspace(id, changes),
         onSuccess: () => {
             client.invalidateQueries({ queryKey: ['workspaces'] })
             client.invalidateQueries({ queryKey: ['boards'] })
