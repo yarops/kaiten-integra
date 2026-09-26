@@ -80,15 +80,7 @@ CREATE VIEW time_tracking_summary AS
 SELECT card_id, COUNT(*) AS entries_count, SUM(hours) AS total_hours, SUM(minutes) AS total_minutes,
        SUM(hours * 60 + minutes) AS total_minutes_all, MAX(date) AS last_entry_date
 FROM time_entries GROUP BY card_id;
-CREATE VIEW invoice_summary AS
-SELECT i.id, i.workspace_id, i.workspace_title, i.board_id, i.board_title, i.status, i.notes,
-       i.created_at, i.updated_at, COUNT(ic.id) AS total_cards,
-       COALESCE(SUM(ic.time_spent), 0) AS total_time_spent
-FROM invoices i LEFT JOIN invoice_cards ic ON i.id = ic.invoice_id
-GROUP BY i.id, i.workspace_id, i.workspace_title, i.board_id, i.board_title,
-         i.status, i.notes, i.created_at, i.updated_at;
-
-GRANT SELECT ON time_tracking_summary, invoice_summary TO anon, authenticated;
+GRANT SELECT ON time_tracking_summary TO anon, authenticated;
 
 -- Draft is the working status: cards of sent/paid invoices are locked, leaving draft refreshes the snapshot.
 CREATE OR REPLACE FUNCTION card_invoice_locked(target_card_id BIGINT)
