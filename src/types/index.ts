@@ -2,6 +2,5 @@
  * Main types exports.
  */
 
-export * from './kaiten'
+export * from './work-management'
 export * from './time-tracking'
-

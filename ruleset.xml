@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ruleset>
-    <!-- Project rules for Kaiten Integration App. -->
+    <!-- Project rules for Workspaces & Invoices. -->
     <rules>
         <rule name="comments">
             <description>All code comments must be written in English and end with a full stop.</description>
@@ -13,4 +13,3 @@
         </rule>
     </rules>
 </ruleset>
-

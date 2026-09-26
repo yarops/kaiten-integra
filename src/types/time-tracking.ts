@@ -3,7 +3,7 @@
  */
 
 /**
- * Represents a time tracking entry for a Kaiten card.
+ * Represents a time tracking entry for a local card.
  */
 export interface TimeEntry {
     id: string

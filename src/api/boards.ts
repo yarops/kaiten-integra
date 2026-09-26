@@ -1,47 +1,48 @@
-import { useQuery } from '@tanstack/react-query'
-import { getKaitenClient } from './kaiten-client'
-import { KaitenBoard } from '../types/kaiten'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { supabase } from '../lib/supabase'
+import { Board } from '../types/work-management'
 
-/**
- * Fetches all boards from Kaiten API for a specific space.
- */
-export const fetchBoards = async (spaceId?: number | null): Promise<KaitenBoard[]> => {
-    if (!spaceId) {
-        return []
-    }
-    const client = getKaitenClient()
-    const response = await client.get<KaitenBoard[]>(`/spaces/${spaceId}/boards`)
-    return response.data
+export const fetchBoards = async (workspaceId?: number | null, includeArchived = false): Promise<Board[]> => {
+    if (!workspaceId) return []
+    let query = supabase.from('boards').select('*').eq('workspace_id', workspaceId).order('title')
+    if (!includeArchived) query = query.eq('archived', false)
+    const { data, error } = await query
+    if (error) throw error
+    return data || []
 }
 
-/**
- * React Query hook for fetching boards for a specific space.
- */
-export const useBoards = (spaceId?: number | null) => {
-    return useQuery({
-        queryKey: ['boards', spaceId],
-        queryFn: () => fetchBoards(spaceId),
-        enabled: !!spaceId,
+export const fetchBoard = async (boardId: number): Promise<Board> => {
+    const { data, error } = await supabase.from('boards').select('*').eq('id', boardId).single()
+    if (error) throw error
+    return data
+}
+
+export const createBoard = async (input: Pick<Board, 'workspace_id' | 'title'> & { description?: string }): Promise<Board> => {
+    const { data, error } = await supabase.from('boards').insert({
+        workspace_id: input.workspace_id, title: input.title.trim(), description: input.description?.trim() || null,
+    }).select().single()
+    if (error) throw error
+    return data
+}
+
+export const updateBoard = async (id: number, changes: Pick<Partial<Board>, 'title' | 'description' | 'archived'>): Promise<Board> => {
+    const { data, error } = await supabase.from('boards').update(changes).eq('id', id).select().single()
+    if (error) throw error
+    return data
+}
+
+export const useBoards = (workspaceId?: number | null, includeArchived = false) => useQuery({
+    queryKey: ['boards', workspaceId, includeArchived], queryFn: () => fetchBoards(workspaceId, includeArchived), enabled: !!workspaceId,
+})
+export const useBoard = (boardId: number) => useQuery({ queryKey: ['boards', 'one', boardId], queryFn: () => fetchBoard(boardId), enabled: !!boardId })
+export const useCreateBoard = () => {
+    const client = useQueryClient()
+    return useMutation({ mutationFn: createBoard, onSuccess: () => client.invalidateQueries({ queryKey: ['boards'] }) })
+}
+export const useUpdateBoard = () => {
+    const client = useQueryClient()
+    return useMutation({
+        mutationFn: ({ id, changes }: { id: number; changes: Pick<Partial<Board>, 'title' | 'description' | 'archived'> }) => updateBoard(id, changes),
+        onSuccess: () => { client.invalidateQueries({ queryKey: ['boards'] }); client.invalidateQueries({ queryKey: ['cards'] }) },
     })
 }
-
-/**
- * Fetches a single board by ID.
- */
-export const fetchBoard = async (boardId: number): Promise<KaitenBoard> => {
-    const client = getKaitenClient()
-    const response = await client.get<KaitenBoard>(`/boards/${boardId}`)
-    return response.data
-}
-
-/**
- * React Query hook for fetching a single board.
- */
-export const useBoard = (boardId: number) => {
-    return useQuery({
-        queryKey: ['boards', boardId],
-        queryFn: () => fetchBoard(boardId),
-        enabled: !!boardId,
-    })
-}
-

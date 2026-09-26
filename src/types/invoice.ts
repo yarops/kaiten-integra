@@ -4,8 +4,8 @@
 
 export interface Invoice {
     id: string
-    space_id: number
-    space_title: string | null
+    workspace_id: number
+    workspace_title: string | null
     board_id: number
     board_title: string | null
     total_time_spent: number
@@ -23,16 +23,16 @@ export interface InvoiceCard {
     card_title: string
     card_description: string | null
     time_spent: number
-    kaiten_time_spent?: number
+    legacy_time_spent?: number
     tracked_time_spent?: number
-    tags: unknown[]
+    tags: Array<{ name: string } | string>
     created_at: string | null
     created_at_record: string
 }
 
 export interface CreateInvoiceData {
-    space_id: number
-    space_title: string
+    workspace_id: number
+    workspace_title: string
     board_id: number
     board_title: string
     notes?: string
@@ -41,4 +41,3 @@ export interface CreateInvoiceData {
 export interface InvoiceWithCards extends Invoice {
     invoice_cards: InvoiceCard[]
 }
-

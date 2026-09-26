@@ -89,18 +89,30 @@ export const getTimeTrackingSummary = async (cardId: number): Promise<TimeTracki
  * Gets time tracking summaries for multiple cards.
  */
 export const getTimeTrackingSummaries = async (cardIds: number[]): Promise<TimeTrackingSummary[]> => {
-    if (cardIds.length === 0) return []
+    const uniqueCardIds = [...new Set(cardIds)]
+    if (uniqueCardIds.length === 0) return []
 
-    const { data, error } = await supabase
-        .from('time_tracking_summary')
-        .select('*')
-        .in('card_id', cardIds)
+    // PostgREST encodes .in() filters in the URL. Keep requests bounded so large
+    // boards do not exceed proxy request-line limits, and run chunks sequentially
+    // to avoid another burst of concurrent requests.
+    const chunkSize = 200
+    const summaries: TimeTrackingSummary[] = []
 
-    if (error) {
-        throw new Error(`Failed to fetch time tracking summaries: ${error.message}`)
+    for (let index = 0; index < uniqueCardIds.length; index += chunkSize) {
+        const chunk = uniqueCardIds.slice(index, index + chunkSize)
+        const { data, error } = await supabase
+            .from('time_tracking_summary')
+            .select('*')
+            .in('card_id', chunk)
+
+        if (error) {
+            throw new Error(`Failed to fetch time tracking summaries: ${error.message}`)
+        }
+
+        summaries.push(...(data || []))
     }
 
-    return data || []
+    return summaries
 }
 
 /**
@@ -181,9 +193,11 @@ export const useTimeTrackingSummary = (cardId: number) => {
  * Hook for fetching time tracking summaries for multiple cards.
  */
 export const useTimeTrackingSummaries = (cardIds: number[]) => {
+    const normalizedCardIds = [...new Set(cardIds)].sort((left, right) => left - right)
+
     return useQuery({
-        queryKey: ['timeTrackingSummaries', cardIds],
-        queryFn: () => getTimeTrackingSummaries(cardIds),
-        enabled: cardIds.length > 0,
+        queryKey: ['timeTrackingSummaries', normalizedCardIds],
+        queryFn: () => getTimeTrackingSummaries(normalizedCardIds),
+        enabled: normalizedCardIds.length > 0,
     })
 }

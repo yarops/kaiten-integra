@@ -1,16 +1,16 @@
-.kaiten-app {
+.app-shell {
   max-width: 1280px;
   margin: 0 auto;
   padding: 2rem;
 }
 
-.kaiten-header {
+.app-header {
   margin-bottom: 2rem;
   padding-bottom: 1.5rem;
   border-bottom: 2px solid #333;
 }
 
-.kaiten-header h1 {
+.app-header h1 {
   font-size: 2rem;
   margin: 0 0 1.5rem 0;
   color: #fff;
@@ -90,7 +90,7 @@
   cursor: not-allowed;
 }
 
-.kaiten-content {
+.app-content {
   padding: 2rem 0;
 }
 
@@ -355,3 +355,24 @@
   }
 }
 
+.archive-toggle { margin: 0 0 1rem; color: #bbb; }
+.entity-actions, .row-actions, .form-actions, .table-toolbar { display: flex; gap: .5rem; align-items: center; }
+.entity-actions button, .row-actions button { padding: .4rem .65rem; font-size: .8rem; }
+.table-toolbar { justify-content: space-between; margin-bottom: 1rem; }
+.table-toolbar h2 { margin: 0; }
+.btn-primary { background: #646cff; color: white; border-color: #646cff; }
+.archived-row { opacity: .55; }
+.card-status small { display: block; color: #aaa; margin-top: .3rem; }
+.modal-overlay { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 1rem; background: rgba(0, 0, 0, .7); }
+.entity-form { width: min(520px, 100%); display: grid; gap: 1rem; padding: 1.5rem; border: 1px solid #444; border-radius: 10px; background: #1a1a1a; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+.entity-form h2 { margin: 0; }
+.entity-form label { display: grid; gap: .4rem; color: #bbb; }
+.entity-form input, .entity-form textarea, .entity-form select { box-sizing: border-box; width: 100%; padding: .7rem; border: 1px solid #444; border-radius: 5px; background: #242424; color: white; }
+.form-actions { justify-content: flex-end; }
+
+@media (max-width: 800px) {
+  .app-shell { padding: 1rem; }
+  .selector-group { align-items: stretch; flex-direction: column; }
+  .selector-group select { min-width: 0; width: 100%; }
+  .invoice-actions { gap: 1rem; align-items: stretch; flex-direction: column; }
+}

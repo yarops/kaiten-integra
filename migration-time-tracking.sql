@@ -57,12 +57,12 @@ GROUP BY card_id;
 
 -- Add new columns to invoice_cards table to store time from different sources
 ALTER TABLE invoice_cards 
-ADD COLUMN IF NOT EXISTS kaiten_time_spent INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS legacy_time_spent INTEGER DEFAULT 0,
 ADD COLUMN IF NOT EXISTS tracked_time_spent INTEGER DEFAULT 0;
 
 -- Optional: Add comments to document the new functionality
-COMMENT ON TABLE time_entries IS 'Stores time tracking entries for Kaiten cards';
-COMMENT ON COLUMN time_entries.card_id IS 'Kaiten card ID';
+COMMENT ON TABLE time_entries IS 'Stores time tracking entries for cards';
+COMMENT ON COLUMN time_entries.card_id IS 'Card ID';
 COMMENT ON COLUMN time_entries.hours IS 'Hours spent (0-23)';
 COMMENT ON COLUMN time_entries.minutes IS 'Minutes spent (0-59)';
 COMMENT ON COLUMN time_entries.description IS 'Optional description of work performed';

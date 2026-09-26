@@ -1,4 +1,5 @@
 import { useInvoiceWithCards, useUpdateInvoiceStatus } from '../api/invoices'
+import { InvoiceCard } from '../types/invoice'
 import './InvoiceDetails.css'
 
 interface InvoiceDetailsProps {
@@ -9,7 +10,7 @@ interface InvoiceDetailsProps {
 /**
  * Fixed hourly rate in rubles.
  */
-const HOURLY_RATE = 850
+const HOURLY_RATE = 1000
 
 /**
  * Formats time spent in minutes to a human-readable format.
@@ -79,8 +80,10 @@ const getStatusLabel = (status: string): string => {
 /**
  * Groups cards by tags. Cards with multiple tags appear in multiple groups.
  */
-const groupCardsByTags = (cards: any[]): Map<string, any[]> => {
-    const groups = new Map<string, any[]>()
+const getTagName = (tag: InvoiceCard['tags'][number]) => typeof tag === 'string' ? tag : tag.name
+
+const groupCardsByTags = (cards: InvoiceCard[]): Map<string, InvoiceCard[]> => {
+    const groups = new Map<string, InvoiceCard[]>()
 
     cards.forEach((card) => {
         if (!card.tags || card.tags.length === 0) {
@@ -88,8 +91,8 @@ const groupCardsByTags = (cards: any[]): Map<string, any[]> => {
             noTagCards.push(card)
             groups.set('No Tags', noTagCards)
         } else {
-            card.tags.forEach((tag: any) => {
-                const tagName = tag.name || tag
+            card.tags.forEach((tag) => {
+                const tagName = getTagName(tag)
                 const tagCards = groups.get(tagName) || []
                 tagCards.push(card)
                 groups.set(tagName, tagCards)
@@ -109,9 +112,9 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
 
         let confirmMessage = ''
         if (newStatus === 'paid') {
-            confirmMessage = 'Are you sure? This will mark the invoice as paid and archive all cards in Kaiten.'
+            confirmMessage = 'Are you sure? This will mark the invoice as paid and archive its cards.'
         } else if (invoice.status === 'paid') {
-            confirmMessage = `Change status to ${newStatus}? This will unarchive all cards in Kaiten.`
+            confirmMessage = `Change status to ${newStatus}? Cards not used by another paid invoice will become active.`
         } else {
             confirmMessage = `Change status to ${newStatus}?`
         }
@@ -193,7 +196,7 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
             <div className="invoice-info">
                 <div className="invoice-info-section">
                     <h2>{invoice.board_title || 'Untitled Board'}</h2>
-                    <p className="invoice-space">{invoice.space_title || 'Untitled Space'}</p>
+                    <p className="invoice-space">{invoice.workspace_title || 'Untitled Workspace'}</p>
                 </div>
 
                 <div className="invoice-stats-grid">
@@ -273,9 +276,9 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
                                             <td className="card-tags">
                                                 {card.tags && card.tags.length > 0 ? (
                                                     <div className="tags-list">
-                                                        {card.tags.map((tag: any, index: number) => (
+                                                        {card.tags.map((tag, index) => (
                                                             <span key={index} className="tag">
-                                                                {tag.name || tag}
+                                                                {getTagName(tag)}
                                                             </span>
                                                         ))}
                                                     </div>
@@ -302,4 +305,3 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
         </div>
     )
 }
-

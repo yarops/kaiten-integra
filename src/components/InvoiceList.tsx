@@ -96,7 +96,7 @@ export const InvoiceList = ({ onSelectInvoice }: InvoiceListProps) => {
                             <div className="invoice-card-title">
                                 <h3>{invoice.board_title || 'Untitled Board'}</h3>
                                 <span className="invoice-card-space">
-                                    {invoice.space_title || 'Untitled Space'}
+                                    {invoice.workspace_title || 'Untitled Workspace'}
                                 </span>
                             </div>
                             <div className={`status-badge ${getStatusClass(invoice.status)}`}>
@@ -167,4 +167,3 @@ export const InvoiceList = ({ onSelectInvoice }: InvoiceListProps) => {
         </div>
     )
 }
-

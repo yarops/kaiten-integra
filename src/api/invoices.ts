@@ -1,8 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { Invoice, CreateInvoiceData, InvoiceWithCards } from '../types/invoice'
-import { KaitenCard } from '../types/kaiten'
-import { archiveCards, unarchiveCards } from './cards'
+import { Card } from '../types/work-management'
 import { getTimeTrackingSummaries } from './time-entries'
 
 /**
@@ -10,7 +9,7 @@ import { getTimeTrackingSummaries } from './time-entries'
  */
 export const createInvoice = async (
     data: CreateInvoiceData,
-    cards: KaitenCard[]
+    cards: Card[]
 ): Promise<Invoice> => {
     // Get time tracking summaries for all cards.
     const cardIds = cards.map(card => card.id)
@@ -22,12 +21,11 @@ export const createInvoice = async (
         trackedTimeMap.set(summary.card_id, summary.total_minutes_all)
     })
 
-    // Calculate totals including both Kaiten time and tracked time.
+    // New local cards use the time tracked in this application.
     let totalTimeSpent = 0
     const invoiceCards = cards.map((card) => {
-        const kaitenTime = card.time_spent_sum || 0
         const trackedTime = trackedTimeMap.get(card.id) || 0
-        const totalCardTime = kaitenTime + trackedTime
+        const totalCardTime = trackedTime
 
         totalTimeSpent += totalCardTime
 
@@ -35,12 +33,12 @@ export const createInvoice = async (
             invoice_id: '', // Will be set after invoice creation
             card_id: card.id,
             card_title: card.title,
-            card_description: null,
+            card_description: card.description || null,
             time_spent: totalCardTime,
-            kaiten_time_spent: kaitenTime,
+            legacy_time_spent: 0,
             tracked_time_spent: trackedTime,
             tags: card.tags || [],
-            created_at: card.created,
+            created_at: card.created_at,
         }
     })
 
@@ -50,8 +48,8 @@ export const createInvoice = async (
     const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
-            space_id: data.space_id,
-            space_title: data.space_title,
+            workspace_id: data.workspace_id,
+            workspace_title: data.workspace_title,
             board_id: data.board_id,
             board_title: data.board_title,
             total_time_spent: totalTimeSpent,
@@ -119,49 +117,26 @@ export const fetchInvoiceWithCards = async (invoiceId: string): Promise<InvoiceW
  * Deletes an invoice and its cards.
  */
 export const deleteInvoice = async (invoiceId: string): Promise<void> => {
-    const { error } = await supabase.from('invoices').delete().eq('id', invoiceId)
+    const { error } = await supabase.rpc('delete_invoice', { target_invoice_id: invoiceId })
 
     if (error) throw error
 }
 
 /**
  * Updates invoice status.
- * When status is changed to 'paid', archives all cards in Kaiten.
- * When status is changed to 'draft' or 'sent', unarchives all cards in Kaiten.
+ * Atomically updates invoice status and the cards' billing archive state.
  */
 export const updateInvoiceStatus = async (
     invoiceId: string,
     status: 'draft' | 'sent' | 'paid'
 ): Promise<Invoice> => {
-    // Get invoice cards.
-    const { data: cards, error: cardsError } = await supabase
-        .from('invoice_cards')
-        .select('card_id')
-        .eq('invoice_id', invoiceId)
-
-    if (cardsError) throw cardsError
-
-    if (cards && cards.length > 0) {
-        const cardIds = cards.map((card) => card.card_id)
-
-        // If status is being changed to 'paid', archive the cards in Kaiten.
-        if (status === 'paid') {
-            await archiveCards(cardIds)
-        } else {
-            // If status is being changed to 'draft' or 'sent', unarchive the cards in Kaiten.
-            await unarchiveCards(cardIds)
-        }
-    }
-
-    const { data, error } = await supabase
-        .from('invoices')
-        .update({ status })
-        .eq('id', invoiceId)
-        .select()
-        .single()
+    const { data, error } = await supabase.rpc('set_invoice_status', {
+        target_invoice_id: invoiceId,
+        new_status: status,
+    }).single()
 
     if (error) throw error
-    return data
+    return data as unknown as Invoice
 }
 
 /**
@@ -192,10 +167,11 @@ export const useCreateInvoice = () => {
     const queryClient = useQueryClient()
 
     return useMutation({
-        mutationFn: ({ data, cards }: { data: CreateInvoiceData; cards: KaitenCard[] }) =>
+        mutationFn: ({ data, cards }: { data: CreateInvoiceData; cards: Card[] }) =>
             createInvoice(data, cards),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] })
+            queryClient.invalidateQueries({ queryKey: ['cards'] })
         },
     })
 }
@@ -210,6 +186,7 @@ export const useDeleteInvoice = () => {
         mutationFn: deleteInvoice,
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] })
+            queryClient.invalidateQueries({ queryKey: ['cards'] })
         },
     })
 }
@@ -225,7 +202,7 @@ export const useUpdateInvoiceStatus = () => {
             updateInvoiceStatus(invoiceId, status),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['invoices'] })
+            queryClient.invalidateQueries({ queryKey: ['cards'] })
         },
     })
 }
-
