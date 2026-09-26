@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useInvoices, useDeleteInvoice, useUpdateInvoiceStatus } from '../api/invoices'
+import { getStatusChangeConfirmMessage } from '../lib/invoice-rules'
+import { Invoice } from '../types/invoice'
 import './InvoiceList.css'
 
 interface InvoiceListProps {
@@ -55,6 +57,7 @@ export const InvoiceList = ({ onSelectInvoice }: InvoiceListProps) => {
     const deleteInvoiceMutation = useDeleteInvoice()
     const updateStatusMutation = useUpdateInvoiceStatus()
     const [deletingId, setDeletingId] = useState<string | null>(null)
+    const [updatingStatusId, setUpdatingStatusId] = useState<string | null>(null)
 
     const handleDelete = async (invoiceId: string) => {
         if (!confirm('Are you sure you want to delete this invoice?')) return
@@ -70,12 +73,17 @@ export const InvoiceList = ({ onSelectInvoice }: InvoiceListProps) => {
         }
     }
 
-    const handleStatusChange = async (invoiceId: string, status: 'draft' | 'sent' | 'paid') => {
+    const handleStatusChange = async (invoice: Invoice, status: Invoice['status']) => {
+        if (!confirm(getStatusChangeConfirmMessage(invoice.status, status))) return
+
+        setUpdatingStatusId(invoice.id)
         try {
-            await updateStatusMutation.mutateAsync({ invoiceId, status })
+            await updateStatusMutation.mutateAsync({ invoiceId: invoice.id, status })
         } catch (error) {
             console.error('Error updating invoice status:', error)
-            alert('Failed to update invoice status')
+            alert('Failed to update invoice status. Please try again.')
+        } finally {
+            setUpdatingStatusId(null)
         }
     }
 
@@ -141,12 +149,9 @@ export const InvoiceList = ({ onSelectInvoice }: InvoiceListProps) => {
                                 className="status-select"
                                 value={invoice.status}
                                 onChange={(e) =>
-                                    handleStatusChange(
-                                        invoice.id,
-                                        e.target.value as 'draft' | 'sent' | 'paid'
-                                    )
+                                    handleStatusChange(invoice, e.target.value as Invoice['status'])
                                 }
-                                disabled={updateStatusMutation.isPending}
+                                disabled={updatingStatusId === invoice.id || deletingId === invoice.id}
                             >
                                 <option value="draft">Draft</option>
                                 <option value="sent">Sent</option>
@@ -156,7 +161,7 @@ export const InvoiceList = ({ onSelectInvoice }: InvoiceListProps) => {
                             <button
                                 className="btn-delete"
                                 onClick={() => handleDelete(invoice.id)}
-                                disabled={deletingId === invoice.id}
+                                disabled={deletingId === invoice.id || updatingStatusId === invoice.id}
                             >
                                 {deletingId === invoice.id ? 'Deleting...' : 'Delete'}
                             </button>

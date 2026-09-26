@@ -1,4 +1,5 @@
 import { useInvoiceWithCards, useUpdateInvoiceStatus } from '../api/invoices'
+import { getStatusChangeConfirmMessage } from '../lib/invoice-rules'
 import { InvoiceCard } from '../types/invoice'
 import './InvoiceDetails.css'
 
@@ -110,16 +111,7 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
     const handleStatusChange = async (newStatus: 'draft' | 'sent' | 'paid') => {
         if (!invoice) return
 
-        let confirmMessage = ''
-        if (newStatus === 'paid') {
-            confirmMessage = 'Are you sure? This will mark the invoice as paid and archive its cards.'
-        } else if (invoice.status === 'paid') {
-            confirmMessage = `Change status to ${newStatus}? Cards not used by another paid invoice will become active.`
-        } else {
-            confirmMessage = `Change status to ${newStatus}?`
-        }
-
-        if (!confirm(confirmMessage)) return
+        if (!confirm(getStatusChangeConfirmMessage(invoice.status, newStatus))) return
 
         try {
             await updateStatusMutation.mutateAsync({
