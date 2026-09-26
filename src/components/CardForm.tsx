@@ -7,6 +7,7 @@ interface CardFormProps { card?: Card; boardId: number; onClose: () => void }
 export const CardForm = ({ card, boardId, onClose }: CardFormProps) => {
     const createCard = useCreateCard()
     const updateCard = useUpdateCard()
+    const saving = createCard.isPending || updateCard.isPending
     const [title, setTitle] = useState(card?.title || '')
     const [description, setDescription] = useState(card?.description || '')
     const [status, setStatus] = useState<CardStatus>(card?.status || 'queued')
@@ -14,7 +15,7 @@ export const CardForm = ({ card, boardId, onClose }: CardFormProps) => {
 
     const submit = async (event: FormEvent) => {
         event.preventDefault()
-        if (!title.trim()) return
+        if (!title.trim() || saving) return
         const values = { title, description, status, tags: tags.split(',').map((tag) => tag.trim()).filter(Boolean) }
         try {
             if (card) await updateCard.mutateAsync({ id: card.id, changes: values })
@@ -35,7 +36,7 @@ export const CardForm = ({ card, boardId, onClose }: CardFormProps) => {
                 {Object.entries(cardStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select></label>
             <label>Tags (comma-separated)<input value={tags} onChange={(event) => setTags(event.target.value)} /></label>
-            <div className="form-actions"><button type="button" onClick={onClose}>Cancel</button><button className="btn-primary" type="submit">Save</button></div>
+            <div className="form-actions"><button type="button" onClick={onClose}>Cancel</button><button className="btn-primary" type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button></div>
         </form>
     </div>
 }
