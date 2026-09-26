@@ -100,16 +100,14 @@ function App() {
     }
 
     const createSelectedInvoice = async () => {
-        const workspace = workspaces.find((item) => item.id === selectedWorkspaceId)
-        const board = boards.find((item) => item.id === selectedBoardId)
-        if (!workspace || !board || !selectedCards.length) return
+        if (!selectedBoardId || !selectedCards.length) return
         try {
-            await createInvoice.mutateAsync({
-                data: { workspace_id: workspace.id, workspace_title: workspace.title, board_id: board.id, board_title: board.title },
-                cards: selectedCards,
-            })
+            await createInvoice.mutateAsync({ data: { board_id: selectedBoardId }, cards: selectedCards })
             setSelectedCardIds(new Set()); setView('invoices')
-        } catch (error) { console.error(error); alert('Failed to create invoice.') }
+        } catch (error) {
+            console.error(error)
+            alert(`Failed to create invoice.${error instanceof Error ? ` ${error.message}` : ''}`)
+        }
     }
 
     const selectedWorkspace = workspaces.find((item) => item.id === selectedWorkspaceId)

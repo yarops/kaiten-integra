@@ -2,77 +2,29 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../lib/supabase'
 import { Invoice, CreateInvoiceData, InvoiceWithCards } from '../types/invoice'
 import { Card } from '../types/work-management'
-import { getTimeTrackingSummaries } from './time-entries'
 
 /**
  * Creates a new invoice with selected cards.
+ * The invoice, its card snapshots and totals are created atomically in the database.
  */
 export const createInvoice = async (
     data: CreateInvoiceData,
     cards: Card[]
 ): Promise<Invoice> => {
-    // Get time tracking summaries for all cards.
-    const cardIds = cards.map(card => card.id)
-    const timeSummaries = await getTimeTrackingSummaries(cardIds)
+    const { data: invoice, error } = await supabase.rpc('create_invoice_with_cards', {
+        target_board_id: data.board_id,
+        card_ids: cards.map((card) => card.id),
+        invoice_notes: data.notes ?? null,
+    }).single()
 
-    // Create a map of card_id to tracked time for quick lookup.
-    const trackedTimeMap = new Map<number, number>()
-    timeSummaries.forEach(summary => {
-        trackedTimeMap.set(summary.card_id, summary.total_minutes_all)
-    })
-
-    // New local cards use the time tracked in this application.
-    let totalTimeSpent = 0
-    const invoiceCards = cards.map((card) => {
-        const trackedTime = trackedTimeMap.get(card.id) || 0
-        const totalCardTime = trackedTime
-
-        totalTimeSpent += totalCardTime
-
-        return {
-            invoice_id: '', // Will be set after invoice creation
-            card_id: card.id,
-            card_title: card.title,
-            card_description: card.description || null,
-            time_spent: totalCardTime,
-            legacy_time_spent: 0,
-            tracked_time_spent: trackedTime,
-            tags: card.tags || [],
-            created_at: card.created_at,
+    if (error) {
+        // unique_violation: a card is already included in another invoice.
+        if (error.code === '23505') {
+            throw new Error('Some cards are already included in another invoice.')
         }
-    })
-
-    const totalCards = cards.length
-
-    // Create invoice.
-    const { data: invoice, error: invoiceError } = await supabase
-        .from('invoices')
-        .insert({
-            workspace_id: data.workspace_id,
-            workspace_title: data.workspace_title,
-            board_id: data.board_id,
-            board_title: data.board_title,
-            total_time_spent: totalTimeSpent,
-            total_cards: totalCards,
-            status: 'draft',
-            notes: data.notes,
-        })
-        .select()
-        .single()
-
-    if (invoiceError) throw invoiceError
-
-    // Update invoice cards with invoice ID and insert them.
-    const invoiceCardsWithId = invoiceCards.map(card => ({
-        ...card,
-        invoice_id: invoice.id,
-    }))
-
-    const { error: cardsError } = await supabase.from('invoice_cards').insert(invoiceCardsWithId)
-
-    if (cardsError) throw cardsError
-
-    return invoice
+        throw new Error(error.message)
+    }
+    return invoice as unknown as Invoice
 }
 
 /**

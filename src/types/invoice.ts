@@ -31,10 +31,7 @@ export interface InvoiceCard {
 }
 
 export interface CreateInvoiceData {
-    workspace_id: number
-    workspace_title: string
     board_id: number
-    board_title: string
     notes?: string
 }
 

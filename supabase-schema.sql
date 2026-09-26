@@ -35,7 +35,7 @@ CREATE TABLE invoices (
 );
 CREATE TABLE invoice_cards (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(), invoice_id UUID NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
-    card_id BIGINT NOT NULL, card_title TEXT NOT NULL, card_description TEXT,
+    card_id BIGINT NOT NULL CONSTRAINT invoice_cards_card_id_key UNIQUE, card_title TEXT NOT NULL, card_description TEXT,
     time_spent INTEGER NOT NULL DEFAULT 0, legacy_time_spent INTEGER NOT NULL DEFAULT 0,
     tracked_time_spent INTEGER NOT NULL DEFAULT 0, tags JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at TIMESTAMPTZ, created_at_record TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -57,7 +57,6 @@ CREATE INDEX idx_invoices_workspace_id ON invoices(workspace_id);
 CREATE INDEX idx_invoices_board_id ON invoices(board_id);
 CREATE INDEX idx_invoices_status ON invoices(status);
 CREATE INDEX idx_invoice_cards_invoice_id ON invoice_cards(invoice_id);
-CREATE INDEX idx_invoice_cards_card_id ON invoice_cards(card_id);
 CREATE INDEX idx_time_entries_card_id ON time_entries(card_id);
 CREATE INDEX idx_time_entries_date ON time_entries(date);
 
@@ -95,6 +94,44 @@ BEGIN
 END;
 $$;
 
+CREATE OR REPLACE FUNCTION create_invoice_with_cards(target_board_id BIGINT, card_ids BIGINT[], invoice_notes TEXT DEFAULT NULL)
+RETURNS SETOF invoices LANGUAGE plpgsql AS $$
+DECLARE
+    target_board boards%ROWTYPE; target_workspace workspaces%ROWTYPE;
+    unique_card_ids BIGINT[]; valid_count INTEGER; new_invoice_id UUID;
+BEGIN
+    unique_card_ids := ARRAY(SELECT DISTINCT unnest(COALESCE(card_ids, ARRAY[]::BIGINT[])));
+    IF cardinality(unique_card_ids) = 0 THEN RAISE EXCEPTION 'No cards selected'; END IF;
+    SELECT * INTO target_board FROM boards WHERE id = target_board_id;
+    IF NOT FOUND THEN RAISE EXCEPTION 'Board not found'; END IF;
+    SELECT * INTO target_workspace FROM workspaces WHERE id = target_board.workspace_id;
+    -- Lock the cards so their status/archive state cannot change while the invoice is created.
+    PERFORM 1 FROM cards WHERE id = ANY(unique_card_ids) ORDER BY id FOR UPDATE;
+    SELECT COUNT(*) INTO valid_count FROM cards
+    WHERE id = ANY(unique_card_ids) AND board_id = target_board_id AND status = 'done'
+      AND NOT manually_archived AND NOT billing_archived;
+    IF valid_count <> cardinality(unique_card_ids) THEN RAISE EXCEPTION 'Some cards cannot be invoiced'; END IF;
+    -- Friendly error; invoice_cards_card_id_key is the actual guarantee.
+    IF EXISTS (SELECT 1 FROM invoice_cards WHERE card_id = ANY(unique_card_ids)) THEN
+        RAISE EXCEPTION 'Some cards are already included in another invoice' USING ERRCODE = 'unique_violation';
+    END IF;
+    INSERT INTO invoices (workspace_id, workspace_title, board_id, board_title, status, notes)
+    VALUES (target_workspace.id, target_workspace.title, target_board.id, target_board.title, 'draft', invoice_notes)
+    RETURNING id INTO new_invoice_id;
+    INSERT INTO invoice_cards (invoice_id, card_id, card_title, card_description,
+                               time_spent, legacy_time_spent, tracked_time_spent, tags, created_at)
+    SELECT new_invoice_id, c.id, c.title, c.description, COALESCE(s.total_minutes_all, 0)::INTEGER, 0,
+           COALESCE(s.total_minutes_all, 0)::INTEGER, c.tags, c.created_at
+    FROM cards c LEFT JOIN time_tracking_summary s ON s.card_id = c.id
+    WHERE c.id = ANY(unique_card_ids);
+    UPDATE invoices i SET total_cards = t.card_count, total_time_spent = t.total_time
+    FROM (SELECT COUNT(*) AS card_count, COALESCE(SUM(time_spent), 0) AS total_time
+          FROM invoice_cards WHERE invoice_id = new_invoice_id) t
+    WHERE i.id = new_invoice_id;
+    RETURN QUERY SELECT * FROM invoices WHERE id = new_invoice_id;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION delete_invoice(target_invoice_id UUID)
 RETURNS VOID LANGUAGE plpgsql AS $$
 DECLARE affected_card_ids BIGINT[];
@@ -119,3 +156,4 @@ CREATE POLICY "Allow all operations on invoice_cards" ON invoice_cards FOR ALL U
 CREATE POLICY "Allow all operations on time_entries" ON time_entries FOR ALL USING (true) WITH CHECK (true);
 GRANT EXECUTE ON FUNCTION set_invoice_status(UUID, TEXT) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION delete_invoice(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION create_invoice_with_cards(BIGINT, BIGINT[], TEXT) TO anon, authenticated;
