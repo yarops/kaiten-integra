@@ -188,6 +188,12 @@
     font-size: 28px;
 }
 
+.invoice-draft-note {
+    margin: 16px 0 0;
+    font-size: 14px;
+    color: #aaa;
+}
+
 .invoice-notes-section {
     margin-top: 24px;
     padding-top: 24px;
@@ -413,7 +419,8 @@
     .btn-back,
     .btn-print,
     .invoice-status-controls,
-    .status-actions {
+    .status-actions,
+    .invoice-draft-note {
         display: none !important;
     }
 

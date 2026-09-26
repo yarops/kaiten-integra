@@ -81,7 +81,7 @@ export const InvoiceList = ({ onSelectInvoice }: InvoiceListProps) => {
             await updateStatusMutation.mutateAsync({ invoiceId: invoice.id, status })
         } catch (error) {
             console.error('Error updating invoice status:', error)
-            alert('Failed to update invoice status. Please try again.')
+            alert(`Failed to update invoice status.${error instanceof Error ? ` ${error.message}` : ''}`)
         } finally {
             setUpdatingStatusId(null)
         }

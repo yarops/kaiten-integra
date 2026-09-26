@@ -10,7 +10,16 @@ describe('getStatusChangeConfirmMessage', () => {
         expect(getStatusChangeConfirmMessage('paid', 'draft')).toContain('will become active')
     })
 
-    it('asks a plain confirmation between non-paid statuses', () => {
-        expect(getStatusChangeConfirmMessage('draft', 'sent')).toBe('Change status to sent?')
+    it('warns about refreshing and locking cards when leaving draft', () => {
+        expect(getStatusChangeConfirmMessage('draft', 'sent')).toContain('refreshed from the cards and locked')
+        expect(getStatusChangeConfirmMessage('draft', 'paid')).toContain('refreshed from the cards and locked')
+    })
+
+    it('tells that cards become editable when returning to draft', () => {
+        expect(getStatusChangeConfirmMessage('sent', 'draft')).toBe('Change status to draft? Its cards will become editable again.')
+    })
+
+    it('asks a plain confirmation between locked statuses', () => {
+        expect(getStatusChangeConfirmMessage('paid', 'sent')).toBe('Change status to sent? Cards not used by another paid invoice will become active.')
     })
 })

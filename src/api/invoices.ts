@@ -87,7 +87,7 @@ export const updateInvoiceStatus = async (
         new_status: status,
     }).single()
 
-    if (error) throw error
+    if (error) throw new Error(error.message)
     return data as unknown as Invoice
 }
 

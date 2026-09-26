@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { activeCardsOnly, canInvoiceCard, normalizeTags, retainInvoiceableSelection } from './card-rules'
+import { activeCardsOnly, canInvoiceCard, isCardLocked, normalizeTags, retainInvoiceableSelection } from './card-rules'
 import { Card } from '../types/work-management'
 
 const card = (changes: Partial<Card> = {}): Card => ({
@@ -22,6 +22,14 @@ describe('card rules', () => {
         expect(canInvoiceCard(card({ status: 'in_progress' }))).toBe(false)
         expect(canInvoiceCard(card({ status: 'done', manually_archived: true }))).toBe(false)
         expect(canInvoiceCard(card({ status: 'done', billing_archived: true }))).toBe(false)
+        expect(canInvoiceCard(card({ status: 'done', invoice: { id: 'invoice-1', status: 'draft' } }))).toBe(false)
+    })
+
+    it('locks cards of sent and paid invoices only', () => {
+        expect(isCardLocked(card())).toBe(false)
+        expect(isCardLocked(card({ invoice: { id: 'invoice-1', status: 'draft' } }))).toBe(false)
+        expect(isCardLocked(card({ invoice: { id: 'invoice-1', status: 'sent' } }))).toBe(true)
+        expect(isCardLocked(card({ invoice: { id: 'invoice-1', status: 'paid' } }))).toBe(true)
     })
 
     it('hides both manual and billing archives', () => {
@@ -30,8 +38,9 @@ describe('card rules', () => {
     })
 
     it('drops invalid card IDs from an existing selection', () => {
-        const cards = [card({ id: 1, status: 'done' }), card({ id: 2, status: 'queued' }), card({ id: 3, status: 'done', billing_archived: true })]
-        expect([...retainInvoiceableSelection([1, 2, 3, 99], cards)]).toEqual([1])
+        const cards = [card({ id: 1, status: 'done' }), card({ id: 2, status: 'queued' }), card({ id: 3, status: 'done', billing_archived: true }),
+            card({ id: 4, status: 'done', invoice: { id: 'invoice-1', status: 'draft' } })]
+        expect([...retainInvoiceableSelection([1, 2, 3, 4, 99], cards)]).toEqual([1])
     })
 
     it('trims and removes empty tags', () => {

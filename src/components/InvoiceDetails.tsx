@@ -96,7 +96,7 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
             })
         } catch (error) {
             console.error('Error updating invoice status:', error)
-            alert('Failed to update invoice status. Please try again.')
+            alert(`Failed to update invoice status.${error instanceof Error ? ` ${error.message}` : ''}`)
         }
     }
 
@@ -199,6 +199,12 @@ export const InvoiceDetails = ({ invoiceId, onBack }: InvoiceDetailsProps) => {
                         </span>
                     </div>
                 </div>
+
+                {invoice.status === 'draft' && (
+                    <p className="invoice-draft-note">
+                        Draft: card details and time are refreshed from the cards when the invoice leaves draft.
+                    </p>
+                )}
 
                 {invoice.notes && (
                     <div className="invoice-notes-section">

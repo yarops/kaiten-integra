@@ -6,8 +6,8 @@ import { useCards, useUpdateCard } from './api/cards'
 import { useCreateInvoice } from './api/invoices'
 import { useTimeTrackingSummaries } from './api/time-entries'
 import { useConfigStore } from './store/config-store'
-import { Card, CardStatus, cardStatusLabels, isCardArchived, Workspace } from './types/work-management'
-import { activeCardsOnly, canInvoiceCard, retainInvoiceableSelection } from './lib/card-rules'
+import { Card, CardInvoice, CardStatus, cardStatusLabels, isCardArchived, Workspace } from './types/work-management'
+import { activeCardsOnly, canInvoiceCard, isCardLocked, retainInvoiceableSelection } from './lib/card-rules'
 import { InvoiceList } from './components/InvoiceList'
 import { InvoiceDetails } from './components/InvoiceDetails'
 import { TimeInput } from './components/TimeInput'
@@ -20,6 +20,9 @@ const formatTime = (minutes = 0) => minutes
     : '—'
 
 type View = 'create' | 'invoices' | 'invoice-details'
+
+const cardInvoiceLabels: Record<CardInvoice['status'], string> = { draft: 'In draft invoice', sent: 'In sent invoice', paid: 'Paid invoice' }
+const lockedCardHint = 'Included in a sent or paid invoice. Move the invoice back to draft to edit.'
 
 function App() {
     const [view, setView] = useState<View>('create')
@@ -85,13 +88,13 @@ function App() {
         if (!board.archived && !showArchived) setSelectedBoard(null)
     }
     const toggleCardArchive = async (card: Card) => {
-        if (card.billing_archived) return
+        if (card.invoice) return
         if (!confirm(`${card.manually_archived ? 'Restore' : 'Archive'} card “${card.title}”?`)) return
         await updateCard.mutateAsync({ id: card.id, changes: { manually_archived: !card.manually_archived } })
     }
 
     const toggleCard = (card: Card) => {
-        if (card.status !== 'done' || isCardArchived(card)) return
+        if (!canInvoiceCard(card)) return
         setSelectedCardIds((current) => {
             const next = new Set(current); next.has(card.id) ? next.delete(card.id) : next.add(card.id); return next
         })
@@ -107,6 +110,8 @@ function App() {
             alert(`Failed to create invoice.${error instanceof Error ? ` ${error.message}` : ''}`)
         }
     }
+
+    const openInvoice = (id: string) => { setInvoiceId(id); setView('invoice-details') }
 
     const selectedWorkspace = workspaces.find((item) => item.id === selectedWorkspaceId)
     const selectedBoard = boards.find((item) => item.id === selectedBoardId)
@@ -135,7 +140,7 @@ function App() {
         </header>
 
         <main className="app-content">
-            {view === 'invoices' && <InvoiceList onSelectInvoice={(id) => { setInvoiceId(id); setView('invoice-details') }} />}
+            {view === 'invoices' && <InvoiceList onSelectInvoice={openInvoice} />}
             {view === 'invoice-details' && invoiceId && <InvoiceDetails invoiceId={invoiceId} onBack={() => setView('invoices')} />}
             {view === 'create' && (!selectedWorkspaceId ? <p className="info-message">Please select or create a workspace.</p>
                 : !selectedBoardId ? <p className="info-message">Please select or create a board.</p>
@@ -143,12 +148,12 @@ function App() {
                 : <section>
                     <div className="table-toolbar"><h2>{selectedBoard?.title}</h2><button className="btn-primary" disabled={selectedBoard?.archived} onClick={() => setEditingCard('new')}>New card</button></div>
                     {cards.length ? <div className="table-container"><table className="cards-table"><thead><tr><th><input type="checkbox" checked={doneCards.length > 0 && selectedCardIds.size === doneCards.length} onChange={() => setSelectedCardIds(selectedCardIds.size === doneCards.length ? new Set() : new Set(doneCards.map((card) => card.id)))} /></th><th>ID</th><th>Title</th><th>Tags</th><th>Time</th><th>Created</th><th>Status</th><th>Track</th><th>Actions</th></tr></thead>
-                        <tbody>{cards.map((card) => { const archived = isCardArchived(card); return <tr key={card.id} className={`${selectedCardIds.has(card.id) ? 'selected ' : ''}${archived ? 'archived-row' : ''}`}>
-                            <td><input type="checkbox" checked={selectedCardIds.has(card.id)} disabled={card.status !== 'done' || archived} onChange={() => toggleCard(card)} /></td><td>{card.id}</td><td><strong>{card.title}</strong>{card.description && <div className="card-description">{card.description}</div>}</td>
+                        <tbody>{cards.map((card) => { const archived = isCardArchived(card); const locked = isCardLocked(card); return <tr key={card.id} className={`${selectedCardIds.has(card.id) ? 'selected ' : ''}${archived ? 'archived-row' : ''}`}>
+                            <td><input type="checkbox" checked={selectedCardIds.has(card.id)} disabled={!canInvoiceCard(card)} onChange={() => toggleCard(card)} /></td><td>{card.id}</td><td><strong>{card.title}</strong>{card.description && <div className="card-description">{card.description}</div>}</td>
                             <td>{card.tags.map((tag) => typeof tag === 'string' ? tag : tag.name).join(', ') || '—'}</td><td>{formatTime(minutesByCard.get(card.id))}</td><td>{new Date(card.created_at).toLocaleDateString()}</td>
-                            <td><select value={card.status} disabled={archived} onChange={(event) => updateCard.mutate({ id: card.id, changes: { status: event.target.value as CardStatus } })}>{Object.entries(cardStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{card.billing_archived && <small>Paid invoice</small>}</td>
-                            <td><button disabled={archived} className="time-tracker-btn" onClick={() => setTimeCardId(card.id)}>{minutesByCard.get(card.id) ? '✓' : '+'}</button></td>
-                            <td className="row-actions"><button onClick={() => setEditingCard(card)}>Edit</button><button disabled={card.billing_archived} onClick={() => toggleCardArchive(card)}>{card.manually_archived ? 'Restore' : 'Archive'}</button></td>
+                            <td className="card-status"><select value={card.status} disabled={archived || locked} title={locked ? lockedCardHint : undefined} onChange={(event) => updateCard.mutate({ id: card.id, changes: { status: event.target.value as CardStatus } })}>{Object.entries(cardStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>{card.invoice && <button className="invoice-link" onClick={() => openInvoice(card.invoice!.id)}>{cardInvoiceLabels[card.invoice.status]}</button>}</td>
+                            <td><button disabled={archived || locked} title={locked ? lockedCardHint : undefined} className="time-tracker-btn" onClick={() => setTimeCardId(card.id)}>{minutesByCard.get(card.id) ? '✓' : '+'}</button></td>
+                            <td className="row-actions"><button disabled={locked} title={locked ? lockedCardHint : undefined} onClick={() => setEditingCard(card)}>Edit</button><button disabled={!!card.invoice} title={card.invoice ? 'Included in an invoice.' : undefined} onClick={() => toggleCardArchive(card)}>{card.manually_archived ? 'Restore' : 'Archive'}</button></td>
                         </tr> })}</tbody></table></div> : <p className="info-message">No cards yet.</p>}
                     <div className="invoice-actions"><span>{selectedCardIds.size} selected · {formatTime(selectedMinutes)}</span><button className="btn-create-invoice" disabled={!selectedCards.length || createInvoice.isPending} onClick={createSelectedInvoice}>{createInvoice.isPending ? 'Creating…' : 'Create Invoice'}</button></div>
                 </section>)}
