@@ -16,7 +16,7 @@ VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-For a new database, run `supabase-schema.sql` in the Supabase SQL editor. For an existing installation of this application, run `migration-local-work-management.sql` after the earlier invoice/time-tracking migrations, then `migration-atomic-invoice-creation.sql`, `migration-hourly-rates.sql`, `migration-invoice-card-lock.sql`, `migration-drop-invoice-summary.sql`, `migration-legacy-cleanup.sql`, `migration-drop-duplicate-time-columns.sql` and `migration-auth-rls.sql`.
+Run `supabase-schema.sql` in the Supabase SQL editor to create the database. The incremental migrations have been applied to production and removed; they remain in git history.
 
 ## Commands
 
