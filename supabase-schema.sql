@@ -67,6 +67,7 @@ CREATE INDEX idx_invoices_status ON invoices(status);
 CREATE INDEX idx_invoice_cards_invoice_id ON invoice_cards(invoice_id);
 CREATE INDEX idx_time_entries_card_id ON time_entries(card_id);
 CREATE INDEX idx_time_entries_date ON time_entries(date);
+CREATE INDEX idx_time_entries_created_at ON time_entries(created_at);
 
 CREATE TRIGGER update_app_settings_updated_at BEFORE UPDATE ON app_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_workspaces_updated_at BEFORE UPDATE ON workspaces FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
